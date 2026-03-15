@@ -138,14 +138,6 @@ def get_evaltime_data(iternum_list):
         #                                                 bfield_type="igrf",
         #                                                 use_python=True)
 
-        # c++, dipole, scalar form
-        # avg_evaltime_dict["cppdip_vec"]["values"][i] = get_evaltime(
-        #     iter_num, initial_variables, bfield_type="dipole", use_unvec=True)
-
-        # # C++, igrf, scalar form
-        # avg_evaltime_dict["cppigrf_novec"]["values"][i] = get_evaltime(
-        #     iter_num, initial_variables, bfield_type="igrf", use_unvec=True)
-
         # C++, dipole, vector form
         avg_evaltime_dict["cppdip_vec"]["values"][i] = get_evaltime(
             iter_num, initial_variables, bfield_type="dipole")

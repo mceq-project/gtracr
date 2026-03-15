@@ -23,7 +23,7 @@ PYBIND11_MODULE(_libgtracr, M) {
            py::arg("stepsize")       = 1e-5,
            py::arg("max_iter")       = 10000,
            py::arg("bfield_type")    = 'i',
-           py::arg("igrf_params")    = std::pair<std::string, double>{"/home/keito/devel/gtracr/data", 2020.},
+           py::arg("igrf_params")    = std::pair<std::string, double>{"", 2020.},
            py::arg("solver_type")    = 'r',
            py::arg("atol")           = 1e-3,
            py::arg("rtol")           = 1e-6)

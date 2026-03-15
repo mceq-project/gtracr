@@ -6,16 +6,9 @@ from tqdm import tqdm
 from datetime import date
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
-import psutil
-
 from gtracr.trajectory import Trajectory
 from gtracr.lib._libgtracr import TrajectoryTracer as CppTrajectoryTracer
 from gtracr.lib.constants import ELEMENTARY_CHARGE, KG_PER_GEVC2, KG_M_S_PER_GEVC
-
-
-def _default_workers():
-    physical = psutil.cpu_count(logical=False)
-    return physical if physical is not None else max(1, psutil.cpu_count(logical=True) // 2)
 
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 PARENT_DIR = os.path.dirname(CURRENT_DIR)
@@ -114,8 +107,8 @@ class GMRC():
     - delta_rigidity : float
         The spacing between each rigidity (default = 5 GV). Sets the coarseness of the rigidity sample space.
     - n_workers : int, optional
-        Number of parallel worker processes to use. Defaults to the number of CPU cores.
-        Set to 1 to disable parallelism (useful for debugging).
+        Number of parallel worker processes to use. Defaults to os.cpu_count()
+        (all logical CPUs). Set to 1 to disable parallelism (useful for debugging).
     - solver : str, optional
         Integration method: "rk4" (frozen-field RK4, default), "boris" (Boris pusher),
         or "rk45" (adaptive Dormand-Prince).
@@ -132,7 +125,7 @@ class GMRC():
                  min_rigidity=5.,
                  max_rigidity=55.,
                  delta_rigidity=1.,
-                 n_workers=_default_workers(),
+                 n_workers=None,
                  solver="rk4",
                  atol=1e-3,
                  rtol=1e-6):
@@ -143,7 +136,7 @@ class GMRC():
         self.bfield_type = bfield_type
         self.plabel = particle_type
         self.date = date
-        self.n_workers = n_workers  # None = use all CPU cores
+        self.n_workers = n_workers if n_workers is not None else (os.cpu_count() or 1)
         _SOLVER_CHARS = {"rk4": "r", "boris": "b", "rk45": "a"}
         self.solver_char = _SOLVER_CHARS.get(solver.lower(), "r")
         self.atol = atol
@@ -197,7 +190,7 @@ class GMRC():
         ]
 
         n_workers = self.n_workers
-        use_parallel = (n_workers is None or n_workers > 1)
+        use_parallel = (n_workers > 1)
 
         if use_parallel:
             # Parallel evaluation: each worker process evaluates one MC sample

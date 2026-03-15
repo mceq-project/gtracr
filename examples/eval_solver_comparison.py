@@ -55,28 +55,6 @@ DT_REF       = 1e-5         # reference step size for RK4/Boris
 MAX_TIME     = 1.0          # seconds → up to 100 000 steps
 
 
-def _make_tracer(solver_char, dt, max_time, atol=1e-3, rtol=1e-6):
-    """Build a fresh CppTrajectoryTracer for the reference trajectory."""
-    from gtracr.utils import location_dict, particle_dict, ymd_to_dec
-    from datetime import date as _date
-    import math
-
-    loc = location_dict[LOCATION]
-    ptcl_dict = particle_dict  # noqa
-    traj = Trajectory(
-        plabel=PLABEL,
-        location_name=LOCATION,
-        zenith_angle=45.,
-        azimuth_angle=90.,
-        rigidity=RIGIDITY_GV,
-        bfield_type=BFIELD_TYPE,
-        solver=solver_char,
-        atol=atol,
-        rtol=rtol,
-    )
-    return traj
-
-
 def run_trajectory(solver, rigidity=RIGIDITY_FORBIDDEN, dt=DT_REF,
                    max_time=MAX_TIME, atol=1e-3, rtol=1e-6):
     """Return full trajectory data dict + metadata."""

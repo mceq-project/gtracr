@@ -298,8 +298,8 @@ class IGRF : public MagneticField {
    of the resulting magnetic field at the provided (r, theta, phi) values in
    IGRF.values(). Mainly used for debugging purposes.
   */
-  inline const std::array<double, 3> &cartesian_values() {
-    return std::array<double, 3>{bfield_.x, bfield_.y, bfield_.z};
+  inline std::array<double, 3> cartesian_values() {
+    return {bfield_.x, bfield_.y, bfield_.z};
   }
 };  // IGRF
 

@@ -108,7 +108,7 @@ def ymd_to_dec(ymd_date):
         [31., 28., 31., 30., 31., 30., 31., 31., 30., 31., 30., 31.])
 
     # get the total number of days based on the month + day
-    ndays = np.cumsum(days_per_mth[int(month)-1]) + day
+    ndays = float(days_per_mth[int(month)-1]) + day
 
     # check if year is a leap year or not
     # this will change the maximum # days in a year

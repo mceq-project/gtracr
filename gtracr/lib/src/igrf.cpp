@@ -93,10 +93,6 @@ void IGRF::getshc(const std::string& fname) {
   std::string epoch1 = std::to_string(epoch1_);
   std::string epoch2 = std::to_string(epoch2_);
 
-  // std::cout << epoch1 << ' ' << epoch2 << std::endl;
-
-  // std::cout << igrf_map << std::endl;
-  
   // set variables (nmain, nsv, gh, gh_sv)
   // nmain stores the spherical-harmonic degree; the actual number of
   // Gauss coefficients is nmain*(nmain+2).  interpsh/extrapsh use
@@ -123,13 +119,6 @@ void IGRF::getshc(const std::string& fname) {
     }
   }
 
-  // std::cout << "Read the 2nd coefficients" << std::endl;
-  // std::cout << "Finished importing coefficients." << std::endl;
-
-  // std::cout << "Check results: " << std::endl;
-  // for (int l = 0; l < igrf_const::MAXCOEFF; ++l) {
-  //   std::cout << gh_first[l] << std::endl;
-  // }
 }  // getshc
 
 /****************************************************************************/
@@ -234,11 +223,6 @@ void IGRF::interpsh(double date, int gh) {
       break;
   }
 
-  // std::cout << "Finished interpolating between two models" << std::endl;
-  // std::cout << "Check results: " << std::endl;
-  // for (int l = 0; l < igrf_const::MAXCOEFF; ++l) {
-  //   std::cout << gh_arr[l] << std::endl;
-  // }
 }
 
 /****************************************************************************/
@@ -341,11 +325,6 @@ void IGRF::extrapsh(double date, int gh) {
       std::cout << "\nError in subroutine extrapsh" << std::endl;
       break;
   }
-  // std::cout << "Finished extrapolating between two models" << std::endl;
-  // std::cout << "Check results: " << std::endl;
-  // for (int l = 0; l < igrf_const::MAXCOEFF; ++l) {
-  //   std::cout << gh_arr[l] << std::endl;
-  // }
 }
 
 /****************************************************************************/
@@ -617,8 +596,6 @@ std::array<double, 3> IGRF::values(const double& r, const double& theta,
   double elev = r * (1e-3);
   double lat = 90. - (theta * constants::RAD_TO_DEG);
   double lng = phi * constants::RAD_TO_DEG;
-
-  // std::cout << lat << ' ' << lng << ' ' << elev << std::endl;
 
   int gh = 3;  // gh=3 is for the main field coefficents (4 for sv)
 
