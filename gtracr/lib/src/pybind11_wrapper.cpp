@@ -58,6 +58,7 @@ PYBIND11_MODULE(_libgtracr, M) {
       .def_readwrite("dt",                  &BatchGMRCParams::dt)
       .def_readwrite("max_time",            &BatchGMRCParams::max_time)
       .def_readwrite("solver_type",         &BatchGMRCParams::solver_type)
+      .def_readwrite("bfield_type",        &BatchGMRCParams::bfield_type)
       .def_readwrite("atol",                &BatchGMRCParams::atol)
       .def_readwrite("rtol",                &BatchGMRCParams::rtol)
       .def_readwrite("n_samples",           &BatchGMRCParams::n_samples)
@@ -65,15 +66,21 @@ PYBIND11_MODULE(_libgtracr, M) {
       .def_readwrite("max_attempts_factor", &BatchGMRCParams::max_attempts_factor)
       .def_readwrite("base_seed",           &BatchGMRCParams::base_seed);
 
-  // Bind batch_gmrc_evaluate: takes numpy table, TableParams, igrf_params, BatchGMRCParams.
-  // Returns (zenith, azimuth, rcutoff) as numpy arrays.
+  // Bind batch_gmrc_evaluate: takes numpy table (or None for direct IGRF),
+  // TableParams, igrf_params, BatchGMRCParams.
+  // Returns (zenith, azimuth, rcutoff, total_trajectories).
   M.def("batch_gmrc_evaluate",
-    [](py::array_t<float, py::array::c_style | py::array::forcecast> shared_table,
+    [](py::object shared_table_obj,
        const TableParams& table_params,
        const std::pair<std::string, double>& igrf_params,
        const BatchGMRCParams& params) {
 
-      const float* tbl_ptr = shared_table.data();
+      const float* tbl_ptr = nullptr;
+      if (!shared_table_obj.is_none()) {
+        auto shared_table = shared_table_obj.cast<
+            py::array_t<float, py::array::c_style | py::array::forcecast>>();
+        tbl_ptr = shared_table.data();
+      }
 
       BatchGMRCResult result;
       {

@@ -16,6 +16,7 @@ struct BatchGMRCParams {
     double min_rigidity, max_rigidity, delta_rigidity;  // GV
     double dt, max_time;                  // seconds
     char solver_type;                     // 'r', 'b', 'a'
+    char bfield_type;                     // 'i' = direct IGRF, 't' = table (default)
     double atol, rtol;
     int n_samples, n_threads;             // 0 threads = hardware_concurrency()
     int max_attempts_factor;              // safety limit: max attempts = n_samples * this (default 30)
@@ -27,6 +28,7 @@ struct BatchGMRCResult {
     int64_t total_trajectories;  // total evaluate() calls across all threads
 };
 
+// shared_table may be nullptr when params.bfield_type == 'i' (direct IGRF).
 BatchGMRCResult batch_gmrc_evaluate(
     const float* shared_table, const TableParams& table_params,
     const std::pair<std::string, double>& igrf_params,

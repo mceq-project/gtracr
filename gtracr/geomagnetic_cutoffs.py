@@ -382,20 +382,28 @@ class GMRC():
         '''
         import time as _time
         from gtracr.lib._libgtracr import (
-            BatchGMRCParams, batch_gmrc_evaluate as _batch_eval)
+            BatchGMRCParams, TableParams,
+            batch_gmrc_evaluate as _batch_eval)
         from gtracr.utils import location_dict, particle_dict, ymd_to_dec
 
         t_wall_start = _time.monotonic()
 
+        use_table = (self.bfield_type[0] == 't')
+        field_label = "table" if use_table else "direct IGRF"
         print(f"Initializing batch GMRC for {self.location} "
-              f"({self.iter_num} samples, {self.n_workers} threads)...")
+              f"({self.iter_num} samples, {self.n_workers} threads, "
+              f"{field_label})...")
 
         datapath = os.path.join(CURRENT_DIR, "data")
         dec_date = float(ymd_to_dec(self.date))
         igrf_params = (datapath, dec_date)
 
-        shared_table, table_params = _get_or_generate_igrf_table(
-            datapath, dec_date)
+        if use_table:
+            shared_table, table_params = _get_or_generate_igrf_table(
+                datapath, dec_date)
+        else:
+            shared_table = None
+            table_params = TableParams()
 
         loc = location_dict[self.location]
         particle = particle_dict[self.plabel]
@@ -417,6 +425,7 @@ class GMRC():
         p.dt = dt
         p.max_time = max_time
         p.solver_type = self.solver_char
+        p.bfield_type = self.bfield_type[0]
         p.atol = self.atol
         p.rtol = self.rtol
         p.n_samples = self.iter_num

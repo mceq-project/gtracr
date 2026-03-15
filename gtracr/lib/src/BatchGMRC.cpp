@@ -236,7 +236,8 @@ static WorkerResult thread_worker(
     double charge_si, double mass_si,
     double escape_radius,
     double dt, int max_step,
-    char solver_type, double atol, double rtol,
+    char solver_type, char bfield_type,
+    double atol, double rtol,
     int quota, int max_attempts,
     uint64_t seed) {
 
@@ -249,14 +250,27 @@ static WorkerResult thread_worker(
     std::uniform_real_distribution<double> dist_az(0.0, 360.0);
     std::uniform_real_distribution<double> dist_zen(0.0, 180.0);
 
-    // Build thread-local TrajectoryTracer (owns its own IGRF for fallback)
-    TrajectoryTracer tracer(shared_table, table_params,
-                             charge_si, mass_si,
-                             0.0,  // start_altitude set per direction
-                             escape_radius,
-                             dt, max_step,
-                             igrf_params,
-                             solver_type, atol, rtol);
+    // Build thread-local TrajectoryTracer.
+    // Each thread owns its own IGRF instance (IGRF::values is not thread-safe).
+    // For 'i' (direct IGRF): use the regular constructor with bfield_type='i'.
+    // For 't' (table):       use the shared-table constructor.
+    auto make_tracer = [&]() -> TrajectoryTracer {
+        if (bfield_type == 'i') {
+            return TrajectoryTracer(charge_si, mass_si,
+                                     0.0, escape_radius,
+                                     dt, max_step,
+                                     'i', igrf_params,
+                                     solver_type, atol, rtol);
+        } else {
+            return TrajectoryTracer(shared_table, table_params,
+                                     charge_si, mass_si,
+                                     0.0, escape_radius,
+                                     dt, max_step,
+                                     igrf_params,
+                                     solver_type, atol, rtol);
+        }
+    };
+    TrajectoryTracer tracer = make_tracer();
 
     int successes = 0;
     int attempts = 0;
@@ -350,7 +364,8 @@ BatchGMRCResult batch_gmrc_evaluate(
                 rigidities_asc, ref_momentum_gevc, mom_factor,
                 charge_si, mass_si, params.escape_radius,
                 params.dt, max_step,
-                params.solver_type, params.atol, params.rtol,
+                params.solver_type, params.bfield_type,
+                params.atol, params.rtol,
                 quota, max_attempts, seed);
         });
     }
