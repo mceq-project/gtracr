@@ -20,7 +20,7 @@ finds the minimum rigidity that allows the particle to escape Earth's magnetic f
 ## Build
 
 The C++ core is compiled as a Python extension module (`_libgtracr`) via pybind11.
-The build system uses **meson-python** (PEP-517) with pybind11 v3.0.2 as a git submodule.
+The build system uses **meson-python** (PEP-517) with pybind11 as a git submodule (`subprojects/pybind11`).
 
 ```bash
 # Initialize submodule after clone
@@ -30,7 +30,7 @@ git submodule update --init
 pip install -e . --no-build-isolation
 ```
 
-**Requirements**: Python ≥ 3.6, a C++11 compiler (GCC, Clang, MSVC), meson ≥ 1.1, ninja,
+**Requirements**: Python ≥ 3.6, a C++14 compiler (GCC, Clang, MSVC), meson ≥ 1.1, ninja,
 and the packages in `requirements.txt` (numpy, scipy, tqdm).
 
 ---
@@ -42,8 +42,14 @@ and the packages in `requirements.txt` (numpy, scipy, tqdm).
 pytest gtracr/tests/ -v
 
 # Individual test files
-pytest gtracr/tests/test_trajectories.py -v   # 13 trajectory cases (dipole + IGRF)
-pytest gtracr/tests/test_bfield.py -v          # 10 B-field magnitude tests
+pytest gtracr/tests/test_trajectories.py -v   # trajectory cases (dipole + IGRF)
+pytest gtracr/tests/test_bfield.py -v          # B-field magnitude tests
+pytest gtracr/tests/test_solvers.py -v         # solver comparison (RK4, Boris, RK45)
+pytest gtracr/tests/test_gmrc.py -v            # GMRC integration tests
+pytest gtracr/tests/test_numerical_regression.py -v  # regression against saved baselines
+pytest gtracr/tests/test_trajectory_coverage.py -v   # broad trajectory coverage
+pytest gtracr/tests/test_particle_location.py -v     # particle/location combinations
+pytest gtracr/tests/test_utils.py -v           # utility function tests
 ```
 
 ---
@@ -74,17 +80,29 @@ User (Python)
   │
   ├── GMRC (gtracr/geomagnetic_cutoffs.py)
   │     Monte Carlo over 10,000 random (zenith, azimuth) angles;
-  │     for each direction, scans rigidities to find the cutoff
+  │     for each direction, scans rigidities to find the cutoff.
+  │     Two evaluation modes:
+  │       evaluate()       — Python-orchestrated (ProcessPool or ThreadPool)
+  │       evaluate_batch() — entire MC loop in C++ (BatchGMRC)
   │
   └── pybind11 extension: gtracr.lib._libgtracr
         │
         ├── TrajectoryTracer (C++)       ← PRIMARY integrator
-        │     RK4 integration of the Lorentz ODE in spherical coordinates.
-        │     Uses std::array<double,6> vector operations.
+        │     RK4/Boris/RK45 integration of the Lorentz ODE in spherical coords.
+        │     Supports three B-field backends: dipole, direct IGRF, tabulated IGRF.
         │
-        └── IGRF (C++)                   ← B-field model
-              Degree-13 spherical harmonic expansion (IGRF-13).
-              Coefficients loaded from gtracr/data/igrf13.json at construction.
+        ├── BatchGMRC (C++)              ← BATCH evaluator
+        │     Entire GMRC MC loop in C++: RNG, coordinate transforms, rigidity
+        │     scanning, std::thread parallelism. Eliminates all Python overhead.
+        │
+        ├── IGRF (C++)                   ← B-field model (direct)
+        │     Degree-13 spherical harmonic expansion (IGRF-13).
+        │     Coefficients loaded from gtracr/data/igrf13.json at construction.
+        │
+        └── IGRF Table (C++)             ← B-field model (tabulated)
+              3D lookup table (64×128×256 grid, 24 MB) with trilinear
+              interpolation. Generated from IGRF, cached to disk as .npy.
+              Located in gtracr/lib/gpu/igrf_table.{hpp,cpp}.
 ```
 
 ### Coordinate System
@@ -105,10 +123,15 @@ The 6-vector state is `(r, θ, φ, pᵣ, pθ, pφ)` where `p` is relativistic mo
 
 ### Magnetic Field Models
 
-| Type | Class | Description |
-|------|-------|-------------|
-| `'dipole'` | `MagneticField` (C++) | Ideal dipole, 1/r³ falloff |
-| `'igrf'` | `IGRF` (C++) | IGRF-13 spherical harmonics, degree 13, 1900–2025 |
+| Type | `bfield_type=` | Class | Description |
+|------|----------------|-------|-------------|
+| Dipole | `'dipole'` | `MagneticField` (C++) | Ideal dipole, 1/r³ falloff |
+| Direct IGRF | `'igrf'` | `IGRF` (C++) | IGRF-13 spherical harmonics, degree 13, 1900–2025 |
+| Tabulated IGRF | `'table'` | `igrf_table` (C++) | 3D lookup table (64×128×256), trilinear interpolation; ~7× faster than direct IGRF |
+
+The tabulated field is generated once from the direct IGRF model and cached to disk
+(`gtracr/data/igrf_table_<year>.npy`). It is the default for `GMRC.evaluate()` when
+`bfield_type="table"` and is required for `evaluate_batch()`.
 
 ---
 
@@ -132,10 +155,29 @@ print(traj.particle_escaped)   # True = allowed trajectory
 ### `GMRC` (`gtracr/geomagnetic_cutoffs.py`)
 
 ```python
-gmrc = GMRC(location="Kamioka", iter_num=10000, bfield_type="igrf")
+# Python-orchestrated evaluation (ProcessPool for igrf/dipole, ThreadPool for table)
+gmrc = GMRC(location="Kamioka", iter_num=10000, bfield_type="igrf",
+            solver="rk4", n_workers=8)
 gmrc.evaluate(dt=1e-5, max_time=1.)
 az_grid, zen_grid, cutoff_grid = gmrc.interpolate_results()
+
+# C++ batch mode — entire MC loop in C++, fastest option (~35k traj/s with table+rk45)
+gmrc = GMRC(location="Kamioka", iter_num=10000, bfield_type="table",
+            solver="rk45", atol=1e-3, rtol=1e-6)
+gmrc.evaluate_batch(dt=1e-5, max_time=1.)
+az_centres, zen_centres, cutoff_grid = gmrc.bin_results()
 ```
+
+**`evaluate()` threading modes:**
+- `bfield_type="igrf"` or `"dipole"` → `ProcessPoolExecutor` (GIL-bound)
+- `bfield_type="table"` → `ThreadPoolExecutor` (GIL released in C++), shared table in memory
+
+**`evaluate_batch()`:** Calls `BatchGMRC` (C++) — RNG, coordinate transforms, rigidity
+scanning, and `std::thread` parallelism all in C++. No Python overhead per trajectory.
+
+**Result methods:**
+- `interpolate_results()` — scipy `griddata` scattered interpolation (legacy)
+- `bin_results()` — fast binning into regular azimuth/zenith grid (preferred for large N)
 
 ---
 
@@ -156,13 +198,20 @@ in this regime; use mid-latitude locations (e.g. `location_name="Kamioka"`) or
 ## Performance Notes and Bottlenecks
 
 ### Completed Optimizations
-- **Parallel MC loop**: `GMRC.evaluate()` uses `ProcessPoolExecutor` — each direction evaluated in
-  a separate worker process; default `n_workers=None` uses all CPU cores; set `n_workers=1` for
-  sequential (useful for debugging)
+- **Parallel MC loop**: `GMRC.evaluate()` uses `ProcessPoolExecutor` (direct IGRF) or
+  `ThreadPoolExecutor` (tabulated IGRF, GIL released); default `n_workers=None` uses all CPU cores
 - **Frozen-field RK4**: B-field evaluated once per step (not 4×); reduces IGRF calls 4× per step
-- **TrajectoryTracer caching in GMRC**: one `TrajectoryTracer` built per direction; `reset()+evaluate()`
+- **TrajectoryTracer caching in GMRC**: one `TrajectoryTracer` built per thread; `reset()+evaluate()`
   loops over rigidities without reloading `igrf13.json`
 - **std::vector pre-allocation**: `reserve(max_iter_)` already present in `evaluate_and_get_trajectory()`
+- **3D IGRF lookup table**: 64×128×256 grid (24 MB) with trilinear interpolation replaces
+  Legendre polynomial recursion; generated once, cached to disk as `.npy`
+- **BatchGMRC (C++)**: entire GMRC MC loop in C++ — RNG, coordinate transforms, rigidity scanning,
+  `std::thread` parallelism — eliminates all Python overhead per trajectory (~35k traj/s with table+RK45)
+- **Table disk caching**: IGRF tables are cached as `gtracr/data/igrf_table_<year>.npy` + `_params.npz`
+  to avoid regeneration across runs
+- **Legacy code removed**: `uTrajectoryTracer` (C++), `gtracr/legacy/` Python modules, vendored
+  pybind11 headers (now via submodule)
 
 ### Additional Solvers (completed)
 
@@ -182,31 +231,14 @@ Key findings:
 - RK45 is extremely fast for coarse GMRC (~100× fewer steps) but needs tight tolerances
   (`atol≲1e-6, rtol≲1e-6`) for position accuracy comparable to RK4 at dt=1e-5
 
-### Bottleneck Map (remaining)
-
-| # | Bottleneck | Location | Impact |
-|---|-----------|----------|--------|
-| 1 | IGRF Legendre evaluation per RK step | `igrf.cpp:shval3` | Medium |
-
 ### Improvement Roadmap
 
-**Medium-term (weeks):**
-- Precompute a 3D B-field grid (r, θ, φ) → 10–30× speedup on field evaluation; eliminates
-  the recursive Legendre polynomial evaluation with trilinear interpolation
-
-**Long-term (GPU, months):**
-- The computation is *embarrassingly parallel* at the trajectory level — each trajectory is
-  completely independent
-- **JAX + vmap**: `jit(vmap(simulate_trajectory))(batch_of_ics)` runs all trajectories in parallel
-  on GPU; requires replacing IGRF Legendre recursion with precomputed table lookup (no branching)
-- **Numba CUDA kernel**: `@cuda.jit` kernel with one CUDA thread per trajectory; precomputed table
-  in device memory
-- **Custom CUDA C++ kernel**: highest performance; one thread per trajectory; IGRF table in shared
-  memory per block; 500–2000× speedup estimated for 10,000+ trajectory batches
-
-The key enabler for GPU is the **precomputed 3D IGRF table**: the recursive Legendre polynomial
-evaluation has loop-carried dependencies that cannot be parallelized across field points, but a
-3D lookup table with trilinear interpolation requires only 8 multiplications per query.
+**Next step: GPU acceleration** (see `GPU-plan.md` for detailed design)
+- HIP portability layer (CUDA + ROCm) with one thread per trajectory
+- The 3D IGRF lookup table (already implemented on CPU) is the key enabler — no branching,
+  just trilinear interpolation in device global memory
+- Warp-level early exit via `__ballot_sync` for variable-length trajectories
+- Estimated 1,000–10,000× speedup for 10,000+ trajectory batches
 
 ---
 
@@ -217,6 +249,9 @@ evaluation has loop-carried dependencies that cannot be parallelized across fiel
 | `gtracr/data/IGRF13.COF` | Original IGRF-13 coefficient file |
 | `gtracr/data/IGRF13.shc` | Spherical harmonic coefficient format |
 | `gtracr/data/igrf13.json` | JSON format used by C++ `IGRF` class at runtime |
+| `gtracr/data/igrf_table_<year>.npy` | Cached 3D IGRF lookup table (auto-generated) |
+| `gtracr/data/igrf_table_<year>_params.npz` | Grid metadata for cached table |
+| `gtracr/data/benchmark_data.pkl` | Saved benchmark/regression baselines |
 
 ---
 
