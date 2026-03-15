@@ -151,31 +151,23 @@ exactly — any inward motion fires the condition. Trajectories are useless for 
 in this regime; use mid-latitude locations (e.g. `location_name="Kamioka"`) or
 `azimuth_angle=270` (westward) for horizontal trajectory visualization.
 
-### TODO: Cache IGRF `TrajectoryTracer` in `GMRC` (bottleneck #1)
-Currently `GMRC._evaluate_single_direction()` reconstructs a new `TrajectoryTracer` (and
-reloads `igrf13.json`) for every trajectory. Cache it across same-date trajectories.
-
 ---
 
 ## Performance Notes and Bottlenecks
 
-### Current Performance
-- `TrajectoryTracer` with IGRF: ~2,000 RK4 steps/second (C++)
-- `GMRC.evaluate()` with 10,000 iterations, 50 rigidities: several hours (sequential)
+### Completed Optimizations
+- **Frozen-field RK4**: B-field evaluated once per step (not 4×); reduces IGRF calls 4× per step
+- **TrajectoryTracer caching in GMRC**: one `TrajectoryTracer` built per direction; `reset()+evaluate()`
+  loops over rigidities without reloading `igrf13.json`
+- **std::vector pre-allocation**: `reserve(max_iter_)` already present in `evaluate_and_get_trajectory()`
 
-### Bottleneck Map (ordered by impact)
+### Bottleneck Map (remaining)
 
 | # | Bottleneck | Location | Impact |
 |---|-----------|----------|--------|
-| 1 | IGRF object reconstructed per trajectory | `geomagnetic_cutoffs.py` | Very High |
-| 2 | IGRF Legendre evaluation per RK step (4×) | `igrf.cpp:shval3` | Medium |
-| 3 | 7 separate std::vector allocations for trajectory | `TrajectoryTracer.cpp:390` | Low |
+| 1 | IGRF Legendre evaluation per RK step | `igrf.cpp:shval3` | Medium |
 
 ### Improvement Roadmap
-
-**Quick wins (days):**
-- Cache IGRF `TrajectoryTracer` instance across same-date trajectories in `GMRC` — avoids
-  reconstructing the IGRF object (and reloading `igrf13.json`) for every trajectory
 
 **Medium-term (weeks):**
 - Precompute a 3D B-field grid (r, θ, φ) → 10–30× speedup on field evaluation; eliminates
