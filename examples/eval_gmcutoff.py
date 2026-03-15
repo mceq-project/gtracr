@@ -1,10 +1,7 @@
-import sys
 import os
-import numpy as np
 import pickle
 import argparse
 
-from tqdm import tqdm
 from gtracr.geomagnetic_cutoffs import GMRC
 from gtracr.utils import location_dict
 from gtracr.plotting import plot_gmrc_scatter, plot_gmrc_heatmap
@@ -24,99 +21,14 @@ def export_as_pkl(fpath, ds):
         pickle.dump(ds, f, protocol=-1)
 
 
-def _evaluate_gmrc_table(gmrc, dt=1e-5, max_time=1.):
-    """
-    Sequential GMRC evaluation using the C++ TrajectoryTracer with the
-    precomputed 3-D IGRF lookup table (bfield_type='t').
-
-    One CppTrajectoryTracer is built (table generation happens in its C++
-    constructor) and reused for every direction and rigidity via reset().
-    This avoids rebuilding the table for each of the 10 000 MC samples.
-    Runs in the main process (no pickling of the 24 MB table into workers).
-    """
-    from gtracr.trajectory import Trajectory
-    from gtracr.lib._libgtracr import TrajectoryTracer as CppTrajectoryTracer
-    from gtracr.lib.constants import ELEMENTARY_CHARGE, KG_PER_GEVC2, KG_M_S_PER_GEVC
-
-    rigidity_list = list(gmrc.rigidity_list)
-    max_step = int(np.ceil(max_time / dt))
-
-    # Build a reference Trajectory just to get charge/mass/start_alt/igrf_params.
-    ref_traj = Trajectory(
-        plabel=gmrc.plabel,
-        location_name=gmrc.location,
-        zenith_angle=45., azimuth_angle=0.,
-        particle_altitude=gmrc.palt,
-        rigidity=rigidity_list[0],
-        bfield_type="igrf",
-        date=gmrc.date,
-    )
-    charge_si = ref_traj.charge * ELEMENTARY_CHARGE
-    mass_si   = ref_traj.mass   * KG_PER_GEVC2
-
-    print("Building IGRF lookup table in C++ (64×128×256 grid)…", flush=True)
-    # bfield_type='t' triggers table generation inside the C++ constructor.
-    tracer = CppTrajectoryTracer(
-        charge_si, mass_si,
-        ref_traj.start_alt, ref_traj.esc_alt,
-        dt, max_step,
-        't', ref_traj.igrf_params,
-        gmrc.solver_char, gmrc.atol, gmrc.rtol,
-    )
-    print("Table built. Running MC loop…", flush=True)
-
-    rng = np.random.default_rng()
-
-    for i in tqdm(range(gmrc.iter_num), desc="GMRC (table)"):
-        azimuth, zenith = rng.random(2) * np.array([360., 180.])
-
-        traj = Trajectory(
-            plabel=gmrc.plabel,
-            location_name=gmrc.location,
-            zenith_angle=zenith,
-            azimuth_angle=azimuth,
-            particle_altitude=gmrc.palt,
-            rigidity=rigidity_list[0],
-            bfield_type="igrf",   # only used for coordinate transform, not field eval
-            date=gmrc.date,
-        )
-
-        ref_mom_si = traj.particle.momentum * KG_M_S_PER_GEVC
-        pos      = traj.particle_sixvector[:3]
-        mom_unit = traj.particle_sixvector[3:] / ref_mom_si
-
-        # For zenith > 90, detector_to_geocentric reduces start_alt via
-        # cos²(zenith). Update the shared tracer's termination boundary to
-        # match, so the trajectory is not terminated prematurely.
-        tracer.set_start_altitude(traj.start_alt)
-
-        rcutoff = 0.0
-        for rigidity in rigidity_list:
-            traj.particle.set_from_rigidity(rigidity)
-            mom_si = traj.particle.momentum * KG_M_S_PER_GEVC
-            vec0 = list(pos) + list(mom_unit * mom_si)
-            tracer.reset()
-            tracer.evaluate(0.0, vec0)
-            if tracer.particle_escaped:
-                rcutoff = rigidity
-                break
-
-        gmrc.data_dict["azimuth"][i] = azimuth
-        gmrc.data_dict["zenith"][i]  = zenith
-        gmrc.data_dict["rcutoff"][i] = rcutoff
-
-
 def _run_gmrc(gmrc, args):
-    """Evaluate gmrc using the field mode specified in args, then plot."""
+    """Evaluate gmrc, then plot."""
     plabel = "p+"
     ngrid_azimuth = 360
     ngrid_zenith = 180
     locname = gmrc.location
 
-    if args.field_mode == "table":
-        _evaluate_gmrc_table(gmrc)
-    else:
-        gmrc.evaluate()
+    gmrc.evaluate()
 
     plot_gmrc_scatter(gmrc.data_dict,
                       locname,
@@ -148,16 +60,16 @@ def eval_gmrc(args):
         args.iter_num = 10
         args.show_plot = True
 
-    if args.field_mode == "table" and args.iter_num > 1000:
-        print(f"Note: --field-mode table runs sequentially (table cannot be shared "
-              f"across worker processes). iter_num={args.iter_num} may be slow.")
+    # --field-mode table overrides bfield_type to use the tabulated IGRF path,
+    # which now generates the table once and shares it across threads.
+    bfield_type = "table" if args.field_mode == "table" else args.bfield_type
 
     if args.eval_all:
         for locname in list(location_dict.keys()):
             gmrc = GMRC(location=locname,
                         iter_num=args.iter_num,
                         particle_altitude=particle_altitude,
-                        bfield_type=args.bfield_type,
+                        bfield_type=bfield_type,
                         particle_type=plabel,
                         n_workers=args.n_workers,
                         solver=args.solver)
@@ -166,7 +78,7 @@ def eval_gmrc(args):
         gmrc = GMRC(location=args.locname,
                     iter_num=args.iter_num,
                     particle_altitude=particle_altitude,
-                    bfield_type=args.bfield_type,
+                    bfield_type=bfield_type,
                     particle_type=plabel,
                     n_workers=args.n_workers,
                     solver=args.solver)
@@ -229,8 +141,8 @@ if __name__ == "__main__":
         dest="field_mode",
         default="igrf",
         choices=["igrf", "table"],
-        help="Field evaluation mode: igrf (direct IGRF via C++ TrajectoryTracer, default) "
-             "or table (precomputed 3-D lookup table via Python RK4; slow, use small -n).")
+        help="Field evaluation mode: igrf (direct IGRF, default) "
+             "or table (precomputed 3-D lookup table, shared across threads).")
 
     args = parser.parse_args()
     eval_gmrc(args)

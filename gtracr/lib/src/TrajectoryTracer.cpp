@@ -85,6 +85,33 @@ TrajectoryTracer::TrajectoryTracer(
   }
 }
 
+// Shared-table constructor: borrows an external table pointer, no allocation.
+TrajectoryTracer::TrajectoryTracer(
+    const float* shared_table, const TableParams& table_params,
+    double charge, double mass, double start_altitude, double escape_radius,
+    double stepsize, int max_iter,
+    const std::pair<std::string, double>& igrf_params,
+    const char solver_type, double atol, double rtol)
+    : bfield_type_{'t'},
+      shared_table_ptr_{shared_table},
+      table_params_{table_params},
+      charge_{charge},
+      mass_{mass},
+      start_altitude_{start_altitude},
+      escape_radius_{escape_radius},
+      stepsize_{stepsize},
+      max_iter_{max_iter},
+      particle_escaped_{false},
+      solver_type_{solver_type},
+      atol_{atol},
+      rtol_{rtol},
+      nsteps_{0} {
+  // Own IGRF for out-of-range fallback (IGRF::values writes to member state,
+  // so each thread needs its own instance).
+  igrf_ = std::make_unique<IGRF>(igrf_params.first + "/igrf13.json",
+                                   igrf_params.second);
+}
+
 // ---------------------------------------------------------------------------
 // B-field dispatch
 // ---------------------------------------------------------------------------
@@ -100,7 +127,8 @@ std::array<double, 3> TrajectoryTracer::bfield_at(double r, double theta,
       float r_f = static_cast<float>(r);
       if (r_f < table_params_.r_min || r_f > table_params_.r_max)
         return igrf_->values(r, theta, phi);
-      auto b = table_lookup(table_.data(), table_params_,
+      const float* tbl = shared_table_ptr_ ? shared_table_ptr_ : table_.data();
+      auto b = table_lookup(tbl, table_params_,
                             r_f,
                             static_cast<float>(theta),
                             static_cast<float>(phi));
@@ -208,6 +236,28 @@ TrajectoryTracer::make_traj_map(
   return {{"t", t_arr},     {"r", r_arr},   {"theta", theta_arr},
           {"phi", phi_arr}, {"pr", pr_arr}, {"ptheta", ptheta_arr},
           {"pphi", pphi_arr}};
+}
+
+// ---------------------------------------------------------------------------
+// find_cutoff_rigidity — scans rigidities for a single direction
+// ---------------------------------------------------------------------------
+
+double TrajectoryTracer::find_cutoff_rigidity(
+    const std::array<double, 3>& pos,
+    const std::array<double, 3>& mom_unit,
+    const std::vector<double>& rigidities,
+    double mom_factor) {
+  for (double rig : rigidities) {
+    double mom_si = rig * mom_factor;
+    std::array<double, 6> vec0 = {{
+        pos[0], pos[1], pos[2],
+        mom_unit[0] * mom_si, mom_unit[1] * mom_si, mom_unit[2] * mom_si}};
+    particle_escaped_ = false;
+    nsteps_ = 0;
+    evaluate(0.0, vec0);
+    if (particle_escaped_) return rig;
+  }
+  return 0.0;
 }
 
 // ---------------------------------------------------------------------------

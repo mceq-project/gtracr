@@ -1,10 +1,11 @@
 import sys
 import os
+import threading
 import numpy as np
 from scipy.interpolate import griddata
 from tqdm import tqdm
 from datetime import date
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 
 from gtracr.trajectory import Trajectory
 from gtracr.lib._libgtracr import TrajectoryTracer as CppTrajectoryTracer
@@ -12,6 +13,49 @@ from gtracr.lib.constants import ELEMENTARY_CHARGE, KG_PER_GEVC2, KG_M_S_PER_GEV
 
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 PARENT_DIR = os.path.dirname(CURRENT_DIR)
+
+_thread_local = threading.local()
+
+# Directory for cached IGRF tables (next to the data files).
+_TABLE_CACHE_DIR = os.path.join(CURRENT_DIR, "data")
+
+
+def _get_or_generate_igrf_table(datapath, dec_date):
+    '''Load a cached IGRF table from disk, or generate and cache it.
+
+    The table depends on the decimal year and the compile-time grid
+    constants (Nr, Ntheta, Nphi).  The cache files (.npy for the table,
+    .npz for the params) are stored alongside igrf13.json.
+    '''
+    from gtracr.lib._libgtracr import (
+        generate_igrf_table as _gen_table, TableParams)
+
+    cache_table = os.path.join(
+        _TABLE_CACHE_DIR, f"igrf_table_{dec_date:.4f}.npy")
+    cache_params = os.path.join(
+        _TABLE_CACHE_DIR, f"igrf_table_{dec_date:.4f}_params.npz")
+
+    if os.path.isfile(cache_table) and os.path.isfile(cache_params):
+        table_flat = np.load(cache_table)
+        d = np.load(cache_params)
+        table_params = TableParams()
+        table_params.r_min = float(d['r_min'])
+        table_params.r_max = float(d['r_max'])
+        table_params.log_r_min = float(d['log_r_min'])
+        table_params.log_r_max = float(d['log_r_max'])
+        table_params.Nr = int(d['Nr'])
+        table_params.Ntheta = int(d['Ntheta'])
+        table_params.Nphi = int(d['Nphi'])
+        return table_flat, table_params
+
+    # Generate from scratch and cache.
+    table_flat, table_params = _gen_table(datapath, dec_date)
+    np.save(cache_table, table_flat)
+    np.savez(cache_params,
+             r_min=table_params.r_min, r_max=table_params.r_max,
+             log_r_min=table_params.log_r_min, log_r_max=table_params.log_r_max,
+             Nr=table_params.Nr, Ntheta=table_params.Ntheta, Nphi=table_params.Nphi)
+    return table_flat, table_params
 
 
 def _evaluate_single_direction(args):
@@ -75,6 +119,40 @@ def _evaluate_single_direction(args):
             return (azimuth, zenith, rigidity)
 
     return (azimuth, zenith, 0.0)
+
+
+def _evaluate_direction_cpp_only(args):
+    '''
+    Lightweight thread worker for the tabulated IGRF case.
+    All Python/numpy work (Trajectory, coordinate transforms) is done in the
+    main thread; this function only builds a C++ tracer and calls
+    find_cutoff_rigidity() which runs the entire rigidity loop in C++ with
+    the GIL released.
+
+    The tracer is cached per thread via threading.local() so that the
+    expensive IGRF JSON parse (in the C++ constructor) happens only once
+    per pool thread instead of once per direction.
+    '''
+    (shared_table, table_params, igrf_params,
+     charge_si, mass_si, start_alt, esc_alt,
+     dt, max_step, solver_char, atol, rtol,
+     pos, mom_unit, rigidity_list, mom_factor,
+     azimuth, zenith) = args
+
+    tracer = getattr(_thread_local, 'tracer', None)
+    if tracer is None:
+        tracer = CppTrajectoryTracer(
+            shared_table, table_params,
+            charge_si, mass_si,
+            start_alt, esc_alt,
+            dt, max_step,
+            igrf_params,
+            solver_char, atol, rtol,
+        )
+        _thread_local.tracer = tracer
+
+    rcutoff = tracer.find_cutoff_rigidity(pos, mom_unit, rigidity_list, mom_factor)
+    return (azimuth, zenith, rcutoff)
 
 
 class GMRC():
@@ -182,27 +260,66 @@ class GMRC():
         rng = np.random.default_rng()
         seeds = rng.integers(0, 2**31, size=self.iter_num)
 
-        args_list = [
-            (self.location, self.plabel, self.bfield_type, self.date,
-             self.palt, rigidity_list, dt, max_time, int(seeds[i]),
-             self.solver_char, self.atol, self.rtol)
-            for i in range(self.iter_num)
-        ]
-
         n_workers = self.n_workers
         use_parallel = (n_workers > 1)
+        use_threads = (use_parallel and self.bfield_type[0] == 't')
 
-        if use_parallel:
-            # Parallel evaluation: each worker process evaluates one MC sample
+        if use_threads:
+            # Tabulated IGRF: generate table once, share across threads.
+            # All Python/numpy work (Trajectory construction, coordinate
+            # transforms) is done here in the main thread so the thread
+            # workers only execute GIL-released C++ code.
+            from gtracr.utils import ymd_to_dec
+            datapath = os.path.join(CURRENT_DIR, "data")
+            dec_date = float(ymd_to_dec(self.date))
+            igrf_params = (datapath, dec_date)
+            shared_table, table_params = _get_or_generate_igrf_table(
+                datapath, dec_date)
+
+            max_step = int(np.ceil(max_time / dt))
+
+            # Pre-compute initial conditions for every MC direction (main thread).
+            args_list = []
+            for i in range(self.iter_num):
+                rng_i = np.random.default_rng(int(seeds[i]))
+                azimuth, zenith = rng_i.random(2) * np.array([360., 180.])
+
+                traj = Trajectory(
+                    plabel=self.plabel,
+                    location_name=self.location,
+                    zenith_angle=zenith,
+                    azimuth_angle=azimuth,
+                    particle_altitude=self.palt,
+                    rigidity=rigidity_list[0],
+                    bfield_type="igrf",  # only for coordinate transform
+                    date=self.date,
+                )
+
+                charge_si = traj.charge * ELEMENTARY_CHARGE
+                mass_si = traj.mass * KG_PER_GEVC2
+                mom_factor = float(np.abs(traj.charge)) * KG_M_S_PER_GEVC
+                ref_mom_si = traj.particle.momentum * KG_M_S_PER_GEVC
+                pos = tuple(float(x) for x in traj.particle_sixvector[:3])
+                mom_unit = tuple(float(x) for x in traj.particle_sixvector[3:] / ref_mom_si)
+
+                args_list.append((
+                    shared_table, table_params, igrf_params,
+                    charge_si, mass_si,
+                    traj.start_alt, traj.esc_alt,
+                    dt, max_step, self.solver_char, self.atol, self.rtol,
+                    pos, mom_unit, rigidity_list, mom_factor,
+                    azimuth, zenith,
+                ))
+
             results = []
-            with ProcessPoolExecutor(max_workers=n_workers) as executor:
+            with ThreadPoolExecutor(max_workers=n_workers) as executor:
                 future_to_idx = {
-                    executor.submit(_evaluate_single_direction, args): i
+                    executor.submit(_evaluate_direction_cpp_only, args): i
                     for i, args in enumerate(args_list)
                 }
                 for future in tqdm(as_completed(future_to_idx),
                                    total=self.iter_num,
-                                   desc="GMRC evaluation"):
+                                   desc="GMRC evaluation (threaded)"):
                     i = future_to_idx[future]
                     results.append((i, future.result()))
 
@@ -211,12 +328,38 @@ class GMRC():
                 self.data_dict["zenith"][i] = zen
                 self.data_dict["rcutoff"][i] = rc
         else:
-            # Sequential fallback (n_workers=1), useful for debugging
-            for i in tqdm(range(self.iter_num)):
-                az, zen, rc = _evaluate_single_direction(args_list[i])
-                self.data_dict["azimuth"][i] = az
-                self.data_dict["zenith"][i] = zen
-                self.data_dict["rcutoff"][i] = rc
+            args_list = [
+                (self.location, self.plabel, self.bfield_type, self.date,
+                 self.palt, rigidity_list, dt, max_time, int(seeds[i]),
+                 self.solver_char, self.atol, self.rtol)
+                for i in range(self.iter_num)
+            ]
+
+            if use_parallel:
+                # Parallel evaluation: each worker process evaluates one MC sample
+                results = []
+                with ProcessPoolExecutor(max_workers=n_workers) as executor:
+                    future_to_idx = {
+                        executor.submit(_evaluate_single_direction, args): i
+                        for i, args in enumerate(args_list)
+                    }
+                    for future in tqdm(as_completed(future_to_idx),
+                                       total=self.iter_num,
+                                       desc="GMRC evaluation"):
+                        i = future_to_idx[future]
+                        results.append((i, future.result()))
+
+                for i, (az, zen, rc) in results:
+                    self.data_dict["azimuth"][i] = az
+                    self.data_dict["zenith"][i] = zen
+                    self.data_dict["rcutoff"][i] = rc
+            else:
+                # Sequential fallback (n_workers=1), useful for debugging
+                for i in tqdm(range(self.iter_num)):
+                    az, zen, rc = _evaluate_single_direction(args_list[i])
+                    self.data_dict["azimuth"][i] = az
+                    self.data_dict["zenith"][i] = zen
+                    self.data_dict["rcutoff"][i] = rc
 
     def interpolate_results(self,
                             method="linear",

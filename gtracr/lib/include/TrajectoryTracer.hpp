@@ -26,7 +26,8 @@ class TrajectoryTracer {
   char bfield_type_;
   MagneticField dipole_;                // always valid (trivial ctor)
   std::unique_ptr<IGRF> igrf_;          // non-null for 'i' and 't'
-  std::vector<float> table_;            // non-empty for 't'
+  std::vector<float> table_;            // non-empty for 't' (owned table)
+  const float* shared_table_ptr_{nullptr};  // non-null when borrowing external table
   TableParams table_params_;            // valid for 't'
 
   // Evaluate B-field at (r, theta, phi) using the active field model.
@@ -125,6 +126,22 @@ class TrajectoryTracer {
                    double atol = 1e-3,
                    double rtol = 1e-6);
 
+  // Shared-table constructor: borrows an external IGRF table instead of
+  // generating its own.  Each tracer still owns its own IGRF object (needed
+  // for out-of-range fallback; IGRF::values() is NOT thread-safe).
+  TrajectoryTracer(const float* shared_table,
+                   const TableParams& table_params,
+                   double charge,
+                   double mass,
+                   double start_altitude,
+                   double escape_radius,
+                   double stepsize,
+                   int max_iter,
+                   const std::pair<std::string, double>& igrf_params,
+                   const char solver_type = 'r',
+                   double atol = 1e-3,
+                   double rtol = 1e-6);
+
   // Reset state for reuse (clears particle_escaped_ and nsteps_).
   void reset() { particle_escaped_ = false; nsteps_ = 0; }
 
@@ -154,6 +171,16 @@ class TrajectoryTracer {
   // Evaluate trajectory and return full history — dispatcher for all solver types.
   std::map<std::string, std::vector<double>> evaluate_and_get_trajectory(
       double& t0, std::array<double, 6>& vec0);
+
+  // Scan rigidities for a single direction and return the cutoff.
+  // pos: {r, theta, phi}, mom_unit: {pr, ptheta, pphi} normalised direction,
+  // rigidities: descending or ascending list of rigidities to scan,
+  // mom_factor: |charge| * KG_M_S_PER_GEVC (converts rigidity to SI momentum).
+  // Returns the first rigidity for which the particle escapes, or 0.0.
+  double find_cutoff_rigidity(const std::array<double, 3>& pos,
+                              const std::array<double, 3>& mom_unit,
+                              const std::vector<double>& rigidities,
+                              double mom_factor);
 };
 
 #endif  //__TRAJECTORYTRACER_HPP_
