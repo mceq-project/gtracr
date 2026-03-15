@@ -29,8 +29,8 @@ def eval_gmrc(args):
     particle_altitude = 100.
 
     # number of points for azimuth / zenith grid
-    ngrid_azimuth = 70
-    ngrid_zenith = 70
+    ngrid_azimuth = 360
+    ngrid_zenith = 180
 
     # change initial parameters if debug mode is set
     if args.debug_mode:
@@ -45,7 +45,8 @@ def eval_gmrc(args):
                         iter_num=args.iter_num,
                         particle_altitude=particle_altitude,
                         bfield_type=args.bfield_type,
-                        particle_type=plabel)
+                        particle_type=plabel,
+                        n_workers=args.n_workers)
 
             gmrc.evaluate()
 
@@ -78,7 +79,8 @@ def eval_gmrc(args):
                     iter_num=args.iter_num,
                     particle_altitude=particle_altitude,
                     bfield_type=args.bfield_type,
-                    particle_type=plabel)
+                    particle_type=plabel,
+                    n_workers=args.n_workers)
 
         gmrc.evaluate()
 
@@ -119,7 +121,7 @@ if __name__ == "__main__":
     parser.add_argument('-n',
                         '--iter_num',
                         dest="iter_num",
-                        default=10000,
+                        default=50000,
                         type=int,
                         help="Number of iterations for Monte-Carlo.")
     parser.add_argument('-bf',
@@ -143,6 +145,13 @@ if __name__ == "__main__":
         dest="debug_mode",
         action="store_true",
         help="Enable debug mode. Sets N = 10 and enable --show=True.")
+    parser.add_argument(
+        '-w',
+        '--workers',
+        dest="n_workers",
+        default=None,
+        type=int,
+        help="Number of parallel worker processes (default: physical core count).")
     # parser.add_argument('-c',
     #                     '--clean',
     #                     dest="clean_dict",

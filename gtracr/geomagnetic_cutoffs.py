@@ -6,9 +6,16 @@ from tqdm import tqdm
 from datetime import date
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
+import psutil
+
 from gtracr.trajectory import Trajectory
 from gtracr.lib._libgtracr import TrajectoryTracer as CppTrajectoryTracer
 from gtracr.lib.constants import ELEMENTARY_CHARGE, KG_PER_GEVC2, KG_M_S_PER_GEVC
+
+
+def _default_workers():
+    physical = psutil.cpu_count(logical=False)
+    return physical if physical is not None else max(1, psutil.cpu_count(logical=True) // 2)
 
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 PARENT_DIR = os.path.dirname(CURRENT_DIR)
@@ -117,7 +124,7 @@ class GMRC():
                  min_rigidity=5.,
                  max_rigidity=55.,
                  delta_rigidity=1.,
-                 n_workers=None):
+                 n_workers=_default_workers()):
         # set class attributes
         self.location = location
         self.palt = particle_altitude
