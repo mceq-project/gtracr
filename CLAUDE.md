@@ -156,6 +156,9 @@ in this regime; use mid-latitude locations (e.g. `location_name="Kamioka"`) or
 ## Performance Notes and Bottlenecks
 
 ### Completed Optimizations
+- **Parallel MC loop**: `GMRC.evaluate()` uses `ProcessPoolExecutor` — each direction evaluated in
+  a separate worker process; default `n_workers=None` uses all CPU cores; set `n_workers=1` for
+  sequential (useful for debugging)
 - **Frozen-field RK4**: B-field evaluated once per step (not 4×); reduces IGRF calls 4× per step
 - **TrajectoryTracer caching in GMRC**: one `TrajectoryTracer` built per direction; `reset()+evaluate()`
   loops over rigidities without reloading `igrf13.json`
