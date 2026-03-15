@@ -7,6 +7,8 @@ from datetime import date
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from gtracr.trajectory import Trajectory
+from gtracr.lib._libgtracr import TrajectoryTracer as CppTrajectoryTracer
+from gtracr.lib.constants import ELEMENTARY_CHARGE, KG_PER_GEVC2, KG_M_S_PER_GEVC
 
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 PARENT_DIR = os.path.dirname(CURRENT_DIR)
@@ -30,19 +32,43 @@ def _evaluate_single_direction(args):
     rng = np.random.default_rng(seed)
     azimuth, zenith = rng.random(2) * np.array([360., 180.])
 
+    # Build Trajectory once for geometry; position and momentum direction are
+    # the same for all rigidities — only momentum magnitude changes.
+    traj = Trajectory(
+        plabel=plabel,
+        location_name=location,
+        zenith_angle=zenith,
+        azimuth_angle=azimuth,
+        particle_altitude=palt,
+        rigidity=rigidity_list[0],
+        bfield_type=bfield_type,
+        date=date_str,
+    )
+
+    max_step = int(np.ceil(max_time / dt))
+    charge_si = traj.charge * ELEMENTARY_CHARGE
+    mass_si = traj.mass * KG_PER_GEVC2
+
+    # Build one TrajectoryTracer (loads IGRF once for the whole rigidity sweep).
+    tracer = CppTrajectoryTracer(
+        charge_si, mass_si,
+        traj.start_alt, traj.esc_alt,
+        dt, max_step,
+        traj.bfield_type, traj.igrf_params,
+    )
+
+    # Precompute momentum direction unit vector (fixed across rigidities).
+    ref_mom_si = traj.particle.momentum * KG_M_S_PER_GEVC
+    pos = traj.particle_sixvector[:3]
+    mom_unit = traj.particle_sixvector[3:] / ref_mom_si
+
     for rigidity in rigidity_list:
-        traj = Trajectory(
-            plabel=plabel,
-            location_name=location,
-            zenith_angle=zenith,
-            azimuth_angle=azimuth,
-            particle_altitude=palt,
-            rigidity=rigidity,
-            bfield_type=bfield_type,
-            date=date_str,
-        )
-        traj.get_trajectory(dt=dt, max_time=max_time)
-        if traj.particle_escaped:
+        traj.particle.set_from_rigidity(rigidity)
+        mom_si = traj.particle.momentum * KG_M_S_PER_GEVC
+        vec0 = list(pos) + list(mom_unit * mom_si)
+        tracer.reset()
+        tracer.evaluate(0.0, vec0)
+        if tracer.particle_escaped:
             return (azimuth, zenith, rigidity)
 
     return (azimuth, zenith, 0.0)

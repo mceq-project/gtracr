@@ -29,6 +29,7 @@ PYBIND11_MODULE(_libgtracr, M) {
                              &TrajectoryTracer::final_time)
      .def_property_readonly("final_sixvector",
                              &TrajectoryTracer::final_sixvector)
+      .def("reset", &TrajectoryTracer::reset)
       .def("evaluate", &TrajectoryTracer::evaluate)
       .def("evaluate_and_get_trajectory",
            &TrajectoryTracer::evaluate_and_get_trajectory);

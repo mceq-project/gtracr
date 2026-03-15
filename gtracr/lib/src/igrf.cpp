@@ -98,27 +98,28 @@ void IGRF::getshc(const std::string& fname) {
   // std::cout << igrf_map << std::endl;
   
   // set variables (nmain, nsv, gh, gh_sv)
+  // nmain stores the spherical-harmonic degree; the actual number of
+  // Gauss coefficients is nmain*(nmain+2).  interpsh/extrapsh use
+  // 1-based indexing into these arrays (indices 1..ncoeffs), so we
+  // fill starting at index 1 and map JSON index j → array index j+1.
   nmain1_ = igrf_map[epoch1]["nmain"];
   nsv1_ = igrf_map[epoch1]["nsv"];
-
-  // write the coefficient array for the specified epochs
-  // into the member array
-  for (int i=0; i<nmain1_; ++i) {
-    gh1_arr[i] = igrf_map[epoch1]["gh"][i];
-    ghsv1_arr[i] = igrf_map[epoch1]["gh_sv"][i];
+  {
+    int ncoeffs1 = nmain1_ * (nmain1_ + 2);
+    for (int i = 1; i <= ncoeffs1; ++i) {
+      gh1_arr[i]   = igrf_map[epoch1]["gh"][i - 1];
+      ghsv1_arr[i] = igrf_map[epoch1]["gh_sv"][i - 1];
+    }
   }
-  
-  // std::cout << igrf_map[epoch1]["gh"] << std::endl;
 
-  // std::cout << "Read the 1st coefficients" << std::endl;
-
-  // only set epoch2 if epoch2 is smaller than the latest epoch 
+  // only set epoch2 if epoch2 is smaller than the latest epoch
   if (epoch2_ < igrf_const::MAXEPOCH) {
     nmain2_ = igrf_map[epoch2]["nmain"];
     nsv2_ = igrf_map[epoch2]["nsv"];
-    for (int i=0; i<nmain2_; ++i) {
-      gh2_arr[i] = igrf_map[epoch2]["gh"][i];
-      ghsv2_arr[i] = igrf_map[epoch2]["gh_sv"][i];
+    int ncoeffs2 = nmain2_ * (nmain2_ + 2);
+    for (int i = 1; i <= ncoeffs2; ++i) {
+      gh2_arr[i]   = igrf_map[epoch2]["gh"][i - 1];
+      ghsv2_arr[i] = igrf_map[epoch2]["gh_sv"][i - 1];
     }
   }
 

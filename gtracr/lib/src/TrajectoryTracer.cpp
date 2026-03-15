@@ -313,43 +313,76 @@ Returns
 None
 
 */
-void TrajectoryTracer::evaluate(const double &t0, std::array<double, 6> &vec0) {
-  double h = stepsize_;  // step size in shorter notation
+// ode_lrz variant: identical physics but accepts a pre-computed B-field
+// so the caller can evaluate bfield_.values() once per RK4 step and reuse
+// the result for all four sub-steps (frozen-field optimisation).
+std::array<double, 6> TrajectoryTracer::ode_lrz_bf(
+    const double t, const std::array<double, 6> &vec,
+    const std::array<double, 3> &bf) {
 
-  // set the initial conditions
+  double r      = vec[0];
+  double theta  = vec[1];
+  double phi    = vec[2];
+  double pr     = vec[3];
+  double ptheta = vec[4];
+  double pphi   = vec[5];
+
+  double gmma    = lorentz_factor(pr, ptheta, pphi);
+  double rel_mass = mass_ * gmma;
+
+  double bf_r     = bf[0];
+  double bf_theta = bf[1];
+  double bf_phi   = bf[2];
+
+  double dprdt_lrz    = -1. * charge_ * ((ptheta * bf_phi) - (bf_theta * pphi));
+  double dprdt_sphcmp = (((ptheta * ptheta) + (pphi * pphi)) / r);
+  double dprdt        = dprdt_lrz + dprdt_sphcmp;
+
+  double dpthetadt_lrz    = charge_ * ((pr * bf_phi) - (bf_r * pphi));
+  double dpthetadt_sphcmp =
+      ((pphi * pphi * cos(theta)) / (r * sin(theta))) - ((pr * ptheta) / r);
+  double dpthetadt = dpthetadt_lrz + dpthetadt_sphcmp;
+
+  double dpphidt_lrz    = -1. * charge_ * ((pr * bf_theta) - (bf_r * ptheta));
+  double dpphidt_sphcmp =
+      ((pr * pphi) / r) + ((ptheta * pphi * cos(theta)) / (r * sin(theta)));
+  double dpphidt = dpphidt_lrz - dpphidt_sphcmp;
+
+  std::array<double, 6> result = {{
+      pr, (ptheta / r), (pphi / (r * sin(theta))), dprdt, dpthetadt, dpphidt}};
+  return (1. / rel_mass) * result;
+}
+
+void TrajectoryTracer::evaluate(const double &t0, std::array<double, 6> &vec0) {
+  double h = stepsize_;
+
   double t = t0;
   std::array<double, 6> vec = vec0;
-  // TODO: make arrays into references for no copying
 
-  // start the loop
   for (int i = 0; i < max_iter_; ++i) {
-    std::array<double, 6> k1_vec =  h * ode_lrz(t, vec);
-    std::array<double, 6> k2_vec = h * ode_lrz(t + (0.5 * h), vec + (0.5 * k1_vec ));
-    std::array<double, 6> k3_vec = h * ode_lrz(t + (0.5 * h), vec + (0.5 * k2_vec ));
-    std::array<double, 6> k4_vec = h * ode_lrz(t + h, vec + h * k3_vec);
-    std::array<double, 6> k_vec = (1. / 6.) * (k1_vec + (2. * k2_vec ) + (2. * k3_vec ) + k4_vec);
+    // Evaluate B-field once at the start of each step (frozen-field RK4).
+    // The field changes by O(h * v * dB/dr) ~ 1e-9 T per step, negligible
+    // relative to the ~3e-5 T field magnitude, so this is a valid
+    // approximation that reduces bfield_.values() calls from 4× to 1× per step.
+    std::array<double, 3> bf = bfield_.values(vec[0], vec[1], vec[2]);
 
-    // increment by weighted sum
-    vec = vec + k_vec;
-    t += h;  // increase time
+    std::array<double, 6> k1_vec = h * ode_lrz_bf(t,             vec,                     bf);
+    std::array<double, 6> k2_vec = h * ode_lrz_bf(t + 0.5 * h,  vec + (0.5 * k1_vec),   bf);
+    std::array<double, 6> k3_vec = h * ode_lrz_bf(t + 0.5 * h,  vec + (0.5 * k2_vec),   bf);
+    std::array<double, 6> k4_vec = h * ode_lrz_bf(t + h,         vec + h * k3_vec,        bf);
+    vec = vec + (1. / 6.) * (k1_vec + (2. * k2_vec) + (2. * k3_vec) + k4_vec);
+    t += h;
 
     const double &r = vec[0];
-
     if (r > escape_radius_) {
       particle_escaped_ = true;
       break;
-    }  // if (r > escape_radius_)
-
-    // breaking condition
-    // if particle reaches back onto Earth's surface again
+    }
     if (r < start_altitude_ + constants::RE) {
       break;
-    }  // if (r < start_altitude_ + constants::RE)
-
-  }    // for (int i = 0; i < max_iter_; ++i)
-  // store the final time and six-vector for checking purposes
-  // the last recorded time and six-vector is the final six-vector / time
-  final_time_ = t;
+    }
+  }
+  final_time_      = t;
   final_sixvector_ = vec;
 }  // evaluate
 

@@ -90,6 +90,12 @@ Lorentz force equation
 */
   std::array<double, 6> ode_lrz(const double t, const std::array<double, 6> &vec);
 
+  // ode_lrz variant that accepts a pre-evaluated B-field (avoids a second
+  // bfield_.values() call when the field is frozen across RK4 sub-steps).
+  std::array<double, 6> ode_lrz_bf(const double t,
+                                    const std::array<double, 6> &vec,
+                                    const std::array<double, 3> &bf);
+
  public:
   /* Default Constructor for TrajectoryTracer class
 
@@ -149,6 +155,11 @@ Lorentz force equation
                    const char bfield_type = 'i',
                    const std::pair<std::string, double> &igrf_params = {
                        "/home/keito/devel/gtracr/data", 2020.});
+
+  // Reset state between reuses of the same tracer (clears particle_escaped_
+  // so the object can be called with evaluate() for a new rigidity without
+  // constructing a fresh TrajectoryTracer and reloading igrf13.json).
+  void reset() { particle_escaped_ = false; }
 
   /* the charge of the particle associated with the Runge-Kutta
    integrator */

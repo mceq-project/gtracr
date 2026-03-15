@@ -7,6 +7,7 @@ py.install_sources(
     'test_particle_location.py',
     'test_trajectory_coverage.py',
     'test_gmrc.py',
+    'test_numerical_regression.py',
   ],
   subdir: 'gtracr/tests',
 )
