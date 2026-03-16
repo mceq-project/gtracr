@@ -52,10 +52,10 @@ jobs:
           allow-prereleases: true
 
       - name: Install dependencies
-        run: pip install numpy scipy tqdm pytest pytest-cov meson-python meson ninja
+        run: pip install numpy scipy tqdm pytest pytest-cov
 
       - name: Build and install
-        run: pip install -e . --no-build-isolation -Csetup-args=-Dnative_arch=false
+        run: pip install -e . -Csetup-args=-Dnative_arch=false
 
       - name: Run tests
         run: pytest gtracr/tests/ -v --no-header
