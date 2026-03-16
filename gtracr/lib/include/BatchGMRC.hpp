@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <string>
 #include <utility>
@@ -21,6 +22,10 @@ struct BatchGMRCParams {
     int n_samples, n_threads;             // 0 threads = hardware_concurrency()
     int max_attempts_factor;              // safety limit: max attempts = n_samples * this (default 30)
     uint64_t base_seed;
+    // Optional Ctrl+C stop flag: set to true to request cooperative cancellation.
+    // Threads check this flag each iteration and exit early if set.
+    // Nullptr means no cancellation support (default).
+    std::atomic<bool>* stop_flag = nullptr;
 };
 
 struct BatchGMRCResult {

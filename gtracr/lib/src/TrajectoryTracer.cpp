@@ -116,8 +116,15 @@ TrajectoryTracer::TrajectoryTracer(
 // B-field dispatch
 // ---------------------------------------------------------------------------
 
+
 std::array<double, 3> TrajectoryTracer::bfield_at(double r, double theta,
                                                     double phi) {
+  // Guard against NaN/Inf from RK45 intermediate stages.  Return zero field
+  // so the adaptive step-size controller rejects the step gracefully.
+  if (!std::isfinite(r) || !std::isfinite(theta) || !std::isfinite(phi) || r <= 0.0) {
+    return {0.0, 0.0, 0.0};
+  }
+
   switch (bfield_type_) {
     case 't': {
       // Fall back to direct IGRF for r outside the table's valid range so
@@ -125,8 +132,9 @@ std::array<double, 3> TrajectoryTracer::bfield_at(double r, double theta,
       // physically correct, diminishing field values rather than the clamped
       // boundary value.
       float r_f = static_cast<float>(r);
-      if (r_f < table_params_.r_min || r_f > table_params_.r_max)
+      if (r_f < table_params_.r_min || r_f > table_params_.r_max) {
         return igrf_->values(r, theta, phi);
+      }
       const float* tbl = shared_table_ptr_ ? shared_table_ptr_ : table_.data();
       auto b = table_lookup(tbl, table_params_,
                             r_f,
@@ -464,8 +472,14 @@ void TrajectoryTracer::run_rk45(const double& t0, std::array<double, 6>& vec0,
   constexpr double E1 =  71./57600.,   E3 = -71./16695.,  E4 =  71./1920.,
                    E5 = -17253./339200., E6 = 22./525.,   E7 = -1./40.;
 
-  constexpr double SAFETY = 0.9, MAX_FAC = 5.0, MIN_FAC = 0.1;
+  constexpr double SAFETY = 0.9, MAX_FAC = 2.0, MIN_FAC = 0.1;
   constexpr double ERR_EXP = -0.2;  // −1/5
+  // Cap step size so intermediate RK45 stages stay within IGRF table range.
+  // Without this cap, large h causes every stage to land outside [1 RE,10 RE],
+  // forcing slow direct-IGRF fallback for all 7 evaluations per step.
+  // MAX_FAC=2 (reduced from 5) prevents aggressive step-growth overshoot that
+  // causes a high rejection rate and millions of wasted iterations per trajectory.
+  constexpr double MAX_STEP = 1e-2;  // 10 ms
 
   double h = stepsize_;
   double t = t0;
@@ -475,12 +489,19 @@ void TrajectoryTracer::run_rk45(const double& t0, std::array<double, 6>& vec0,
   std::array<double, 6> k1 = ode_lrz(t, vec);
 
   int accepted_steps = 0;
+  // Hard upper bound on total iterations (accepted + rejected) to prevent
+  // indefinite looping when the step-size controller oscillates pathologically.
+  // With sin_theta clamping this limit is rarely approached; it is a safety net.
+  const int max_total_iters = max_iter_ * 10;
+  int total_iters = 0;
+  int nan_streak  = 0;  // consecutive NaN error estimates
 
   while (accepted_steps < max_iter_) {
+    if (++total_iters > max_total_iters) break;
     // Clamp step to avoid overshooting max_time (approximated by max_iter_*stepsize_).
     const double t_end = t0 + max_iter_ * stepsize_;
     if (t + h > t_end) h = t_end - t;
-    if (h <= 0.0) break;
+    if (!(h > 0.0)) break;  // catches h<=0 AND h=NaN
 
     std::array<double, 6> k2 = ode_lrz(t + h*1./5.,
         vec + (h*A21)*k1);
@@ -510,6 +531,12 @@ void TrajectoryTracer::run_rk45(const double& t0, std::array<double, 6>& vec0,
     }
     double err_norm = sqrt(err_sq / 6.0);
 
+    if (!(err_norm >= 0.0)) {  // NaN/Inf guard
+      if (++nan_streak > 20) break;  // state is unrecoverable; abort trajectory
+      h *= MIN_FAC; continue;
+    }
+    nan_streak = 0;
+
     double fac = SAFETY * pow(err_norm, ERR_EXP);
     fac = std::min(MAX_FAC, std::max(MIN_FAC, fac));
 
@@ -526,6 +553,7 @@ void TrajectoryTracer::run_rk45(const double& t0, std::array<double, 6>& vec0,
       if (r < start_altitude_ + constants::RE)              break;
     }
     h *= fac;
+    if (h > MAX_STEP) h = MAX_STEP;  // keep intermediate stages in IGRF table range
   }
 
   final_time_      = t;

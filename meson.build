@@ -15,7 +15,7 @@ cc = meson.get_compiler('cpp')
 extra_cpp_args = []
 if host_machine.system() != 'windows'
   foreach flag : [
-    '-march=native', '-ffast-math', '-funroll-loops',
+    '-march=native', '-ffast-math', '-fno-finite-math-only', '-funroll-loops',
     '-Wno-shorten-64-to-32', '-Wno-parentheses',
     '-Wno-unused-variable', '-Wno-sign-compare',
     '-Wno-cpp', '-Wno-deprecated-declarations',

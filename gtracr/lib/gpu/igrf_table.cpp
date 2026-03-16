@@ -67,29 +67,35 @@ std::array<float, 3> table_lookup(const float* table, const TableParams& params,
     const int Np     = params.Nphi;
     const int slice  = Nr * Nt * Np;
 
+    // Guard against NaN/Inf/negative inputs from RK45 intermediate stages.
+    // std::isfinite returns false for NaN and Inf; r <= 0 would produce
+    // NaN from std::log.  Return zero field to let the adaptive step-size
+    // controller reject the step.
+    if (!std::isfinite(r) || !std::isfinite(theta) || !std::isfinite(phi) || r <= 0.0f) {
+        return {0.0f, 0.0f, 0.0f};
+    }
+
     // ---- radial index (log-spaced) ----------------------------------------
     float log_r = std::log(r);
     float fr = (log_r - params.log_r_min) / (params.log_r_max - params.log_r_min)
                * (Nr - 1);
-    fr = std::max(0.0f, std::min(static_cast<float>(Nr - 1) - 1e-6f, fr));
-    int ir0 = static_cast<int>(fr);
-    float wr = fr - static_cast<float>(ir0);
+    // Clamp so ir0 is in [0, Nr-2], ensuring ir0+1 < Nr for trilinear interp.
+    int ir0 = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(Nr - 2), std::floor(fr))));
+    float wr = std::max(0.0f, std::min(1.0f, fr - static_cast<float>(ir0)));
 
     // ---- theta index (linear) ---------------------------------------------
     float ft = theta * static_cast<float>(Nt - 1) / static_cast<float>(constants::pi);
-    ft = std::max(0.0f, std::min(static_cast<float>(Nt - 1) - 1e-6f, ft));
-    int it0 = static_cast<int>(ft);
-    float wt = ft - static_cast<float>(it0);
+    int it0 = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(Nt - 2), std::floor(ft))));
+    float wt = std::max(0.0f, std::min(1.0f, ft - static_cast<float>(it0)));
 
     // ---- phi index (linear, periodic) -------------------------------------
     // Normalise phi to [0, 2π)
     const float two_pi = static_cast<float>(2.0 * constants::pi);
     phi = phi - two_pi * std::floor(phi / two_pi);
     float fp = phi * static_cast<float>(Np) / two_pi;
-    fp = std::max(0.0f, std::min(static_cast<float>(Np) - 1e-6f, fp));
-    int ip0 = static_cast<int>(fp) % Np;
+    int ip0 = static_cast<int>(std::max(0.0f, std::min(static_cast<float>(Np - 1), std::floor(fp)))) % Np;
     int ip1 = (ip0 + 1) % Np;   // periodic wrap
-    float wp = fp - std::floor(fp);
+    float wp = std::max(0.0f, std::min(1.0f, fp - std::floor(fp)));
 
     // ---- helper lambda to index into the flat array -----------------------
     auto idx = [&](int comp, int ir, int it, int ip) -> int {

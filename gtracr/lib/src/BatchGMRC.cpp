@@ -11,6 +11,7 @@
 
 #include <array>
 #include <cmath>
+#include <cstdio>
 #include <random>
 #include <thread>
 #include <vector>
@@ -239,7 +240,17 @@ static WorkerResult thread_worker(
     char solver_type, char bfield_type,
     double atol, double rtol,
     int quota, int max_attempts,
-    uint64_t seed) {
+    uint64_t seed,
+    const std::atomic<bool>* stop_flag,
+    int thread_id) {
+
+#ifdef GTRACR_DEBUG_PRINT
+    std::fprintf(stderr, "[Thread %d] Starting: quota=%d max_attempts=%d "
+                 "solver=%c bfield=%c atol=%.0e rtol=%.0e dt=%.0e max_step=%d\n",
+                 thread_id, quota, max_attempts, solver_type, bfield_type,
+                 atol, rtol, dt, max_step);
+    std::fflush(stderr);
+#endif
 
     WorkerResult result;
     result.zenith.reserve(quota);
@@ -272,13 +283,34 @@ static WorkerResult thread_worker(
     };
     TrajectoryTracer tracer = make_tracer();
 
+#ifdef GTRACR_DEBUG_PRINT
+    std::fprintf(stderr, "[Thread %d] TrajectoryTracer constructed\n", thread_id);
+    std::fflush(stderr);
+#endif
+
     int successes = 0;
     int attempts = 0;
+#ifdef GTRACR_DEBUG_PRINT
+    int last_report = 0;
+#endif
 
-    while (successes < quota && attempts < max_attempts) {
+    while (successes < quota && attempts < max_attempts &&
+           !(stop_flag && stop_flag->load(std::memory_order_relaxed))) {
         double azimuth = dist_az(rng);
         double zenith  = dist_zen(rng);
         ++attempts;
+
+        // Print a progress line every 100 successes or 500 attempts, whichever comes first.
+#ifdef GTRACR_DEBUG_PRINT
+        if (successes - last_report >= 100 || (attempts % 500 == 0)) {
+            std::fprintf(stderr, "[Thread %d] Progress: %d/%d successes, %d attempts, "
+                         "%lld traj_evals so far\n",
+                         thread_id, successes, quota, attempts,
+                         (long long)result.n_trajectories);
+            std::fflush(stderr);
+            last_report = successes;
+        }
+#endif
 
         DirectionIC ic = compute_direction_ic(ctx, zenith, azimuth, ref_momentum_gevc);
         tracer.set_start_altitude(ic.start_altitude);
@@ -294,6 +326,14 @@ static WorkerResult thread_worker(
             ++successes;
         }
     }
+
+#ifdef GTRACR_DEBUG_PRINT
+    std::fprintf(stderr, "[Thread %d] Finished: %d/%d successes, %d attempts, "
+                 "%lld total traj_evals\n",
+                 thread_id, successes, quota, attempts,
+                 (long long)result.n_trajectories);
+    std::fflush(stderr);
+#endif
 
     return result;
 }
@@ -366,12 +406,15 @@ BatchGMRCResult batch_gmrc_evaluate(
                 params.dt, max_step,
                 params.solver_type, params.bfield_type,
                 params.atol, params.rtol,
-                quota, max_attempts, seed);
+                quota, max_attempts, seed,
+                params.stop_flag, t);
         });
     }
 
     // Join all threads
-    for (auto& th : threads) th.join();
+    for (int t = 0; t < n_threads; ++t) {
+        threads[t].join();
+    }
 
     // Concatenate results
     BatchGMRCResult output;

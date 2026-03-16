@@ -8,6 +8,7 @@
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
 
+
 namespace py = pybind11;
 
 PYBIND11_MODULE(_libgtracr, M) {
@@ -75,9 +76,13 @@ PYBIND11_MODULE(_libgtracr, M) {
        const std::pair<std::string, double>& igrf_params,
        const BatchGMRCParams& params) {
 
+      // Keep the array wrapper alive until after batch_gmrc_evaluate returns,
+      // so that `tbl_ptr` is never dangling (forcecast may create a copy whose
+      // data buffer would be freed if the wrapper went out of scope too early).
+      py::array_t<float, py::array::c_style | py::array::forcecast> shared_table;
       const float* tbl_ptr = nullptr;
       if (!shared_table_obj.is_none()) {
-        auto shared_table = shared_table_obj.cast<
+        shared_table = shared_table_obj.cast<
             py::array_t<float, py::array::c_style | py::array::forcecast>>();
         tbl_ptr = shared_table.data();
       }
