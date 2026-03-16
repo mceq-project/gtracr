@@ -16,6 +16,59 @@ PARENT_DIR = os.path.dirname(CURRENT_DIR)
 
 _thread_local = threading.local()
 
+# ---------------------------------------------------------------------------
+# Process-level TrajectoryTracer cache (for ProcessPoolExecutor workers)
+# ---------------------------------------------------------------------------
+# Each worker process stores one shared CppTrajectoryTracer here.  It is
+# initialised once by _init_worker() (via ProcessPoolExecutor's initializer
+# argument) so the expensive IGRF JSON load happens only *once per worker
+# process* rather than once per trajectory direction.
+_worker_tracer = None
+
+
+def _init_worker(common_params):
+    """Initialise a single CppTrajectoryTracer for the lifetime of this worker.
+
+    Called automatically by ProcessPoolExecutor when a new worker process
+    starts.  Storing the tracer in a module-level variable avoids the IGRF
+    JSON parse for every MC direction handled by that worker.
+
+    Parameters
+    ----------
+    common_params : tuple
+        ``(plabel, bfield_type_char, date_str, palt, dt, max_time,
+           solver_char, atol, rtol)``
+    """
+    global _worker_tracer
+
+    plabel, bfield_type_char, date_str, palt, dt, max_time, \
+        solver_char, atol, rtol = common_params
+
+    from gtracr.utils import particle_dict, ymd_to_dec
+
+    particle = particle_dict[plabel]
+    particle.set_from_rigidity(10.0)  # arbitrary rigidity to fix charge/mass
+    charge_si = particle.charge * ELEMENTARY_CHARGE
+    mass_si = particle.mass * KG_PER_GEVC2
+
+    datapath = os.path.join(CURRENT_DIR, "data")
+    dec_date = float(ymd_to_dec(date_str))
+    igrf_params = (datapath, dec_date)
+
+    # Use a placeholder start_alt; it is updated per direction via
+    # set_start_altitude() before each evaluate() call.
+    nominal_start_alt = palt * 1e3 + EARTH_RADIUS
+    esc_alt = 10.0 * EARTH_RADIUS
+    max_step = int(np.ceil(max_time / dt))
+
+    _worker_tracer = CppTrajectoryTracer(
+        charge_si, mass_si,
+        nominal_start_alt, esc_alt,
+        dt, max_step,
+        bfield_type_char, igrf_params,
+        solver_char, atol, rtol,
+    )
+
 # Directory for cached IGRF tables (next to the data files).
 _TABLE_CACHE_DIR = os.path.join(CURRENT_DIR, "data")
 
@@ -61,7 +114,18 @@ def _get_or_generate_igrf_table(datapath, dec_date):
 def _evaluate_single_direction(args):
     '''
     Evaluate the cutoff rigidity for a single random (zenith, azimuth) direction.
-    Designed to run in a worker process (no shared state required).
+
+    Two levels of TrajectoryTracer caching are used:
+
+    1. **Process-level cache**: when the worker was initialised via
+       ``_init_worker``, the module-level ``_worker_tracer`` is reused across
+       all MC samples in that worker — only ``set_start_altitude()`` and
+       ``reset()`` are called between samples, so the IGRF is loaded just once
+       per CPU core.
+
+    2. **Per-direction fallback**: when no process-level tracer exists (e.g.
+       ``n_workers=1``), a single CppTrajectoryTracer is created for the
+       current direction and reused across the rigidity scan.
 
     Parameters
     ----------
@@ -95,14 +159,21 @@ def _evaluate_single_direction(args):
     charge_si = traj.charge * ELEMENTARY_CHARGE
     mass_si = traj.mass * KG_PER_GEVC2
 
-    # Build one TrajectoryTracer (loads IGRF once for the whole rigidity sweep).
-    tracer = CppTrajectoryTracer(
-        charge_si, mass_si,
-        traj.start_alt, traj.esc_alt,
-        dt, max_step,
-        traj.bfield_type, traj.igrf_params,
-        solver_char, atol, rtol,
-    )
+    global _worker_tracer
+    if _worker_tracer is not None:
+        # Process-level cache: update direction-specific start_altitude.
+        tracer = _worker_tracer
+        tracer.set_start_altitude(traj.start_alt)
+    else:
+        # Per-direction fallback: build one tracer for this direction
+        # (loads IGRF once for the whole rigidity sweep).
+        tracer = CppTrajectoryTracer(
+            charge_si, mass_si,
+            traj.start_alt, traj.esc_alt,
+            dt, max_step,
+            traj.bfield_type, traj.igrf_params,
+            solver_char, atol, rtol,
+        )
 
     # Precompute momentum direction unit vector (fixed across rigidities).
     ref_mom_si = traj.particle.momentum * KG_M_S_PER_GEVC
@@ -338,9 +409,26 @@ class GMRC():
             ]
 
             if use_parallel:
-                # Parallel evaluation: each worker process evaluates one MC sample
+                # Parallel evaluation: each worker process evaluates one MC sample.
+                # The initializer creates one cached CppTrajectoryTracer per worker,
+                # eliminating repeated IGRF construction inside each task.
+                common_params = (
+                    self.plabel,
+                    self.bfield_type[0],
+                    self.date,
+                    self.palt,
+                    dt,
+                    max_time,
+                    self.solver_char,
+                    self.atol,
+                    self.rtol,
+                )
                 results = []
-                with ProcessPoolExecutor(max_workers=n_workers) as executor:
+                with ProcessPoolExecutor(
+                    max_workers=n_workers,
+                    initializer=_init_worker,
+                    initargs=(common_params,),
+                ) as executor:
                     future_to_idx = {
                         executor.submit(_evaluate_single_direction, args): i
                         for i, args in enumerate(args_list)
