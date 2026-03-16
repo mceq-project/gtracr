@@ -41,7 +41,6 @@ quote-style = "double"
 omit = [
     "src/gtracr/plotting.py",
     "src/gtracr/scripts/*",
-    "src/gtracr/legacy/*",
     "src/gtracr/version.py",
-    "src/gtracr/lib/igrf_utils.py",
+    "src/gtracr/bfield/_utils.py",
 ]

@@ -1,23 +1,20 @@
 """
-Utility class for gtracr.
-Contains conversions between geodesic coordinates and debuggers for the package.
-may also contain other things (not known as of now)
+Utility functions for gtracr.
+
+Provides coordinate conversions (decimal ↔ DMS, decimal year), a pickled
+dictionary loader, and factory functions for the predefined location and
+particle dictionaries.
 """
 
-import os
 import pickle
+from pathlib import Path
 
 import numpy as np
 
-from gtracr.lib.location import Location
-from gtracr.lib.particle import Particle
+from gtracr.location import Location
+from gtracr.particle import Particle
 
-CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
-DATA_DIR = os.path.join(CURRENT_DIR, "data")
-
-# set global dictionaries here
-# global location_dict
-# global particle_dict
+_DATA_DIR = Path(__file__).parent / "data"
 
 
 def dec_to_dms(lat_dec, lng_dec):
@@ -144,15 +141,6 @@ def import_dict(fname):
     with open(fname, "rb") as f:
         the_dict = pickle.load(f)
     return the_dict
-
-
-# def get_locationdict():
-#     '''
-#     Get the location dictionary from the .pkl file
-#     '''
-#     fpath = os.path.join(DATA_DIR, "location_dict.pkl")
-#     location_dict = import_dict(fpath)
-#     return location_dict
 
 
 def set_locationdict():

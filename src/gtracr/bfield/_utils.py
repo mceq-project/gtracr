@@ -1,16 +1,13 @@
-#!/usr/bin/env python3
 """
-Created on Mon Mar 30 21:55:38 2020
+Internal IGRF-13 spherical harmonic utilities.
 
-@author: Ciaran Beggan (British Geological Survey)
+Provides Schmidt quasi-normalized Legendre polynomials, coefficient loading
+from ``.shc`` files, and the ``synth_values()`` evaluator used by
+:class:`gtracr.bfield.igrf.IGRF13`.  Not part of the public API.
 
-Based on code from : chaosmagpy, Clemens Kloss (DTU Space)
-                   : spherical harmonic code from David Kerridge (BGS)
-
-Functions for computing main field, the non-linear coefficients of the field,
-    loading in coefficients files, format checking and coordinate rotation from
-    geodetic to geocentric frame
-
+Original author: Ciaran Beggan (British Geological Survey).
+Based on: chaosmagpy (Clemens Kloss, DTU Space) and spherical harmonic code
+from David Kerridge (BGS).
 """
 
 import os

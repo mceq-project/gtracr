@@ -1,5 +1,3 @@
-# igrf_table.cpp is CPU-only and always compiled; GTRACR_HAS_GPU is defined
-# only when hipcc is present (future: batch_kernel.hip goes there).
 gpu_cpp_args = []
 if has_gpu
   gpu_cpp_args = ['-DGTRACR_HAS_GPU']
@@ -22,19 +20,5 @@ py.extension_module(
   dependencies: [py.dependency(), pybind11_dep],
   cpp_args: extra_cpp_args + gpu_cpp_args,
   install: true,
-  subdir: 'gtracr/lib',
-)
-
-py.install_sources(
-  [
-    '__init__.py',
-    'constants.py',
-    'igrf_table.py',
-    'igrf_utils.py',
-    'location.py',
-    'magnetic_field.py',
-    'particle.py',
-    'trajectory_tracer.py',
-  ],
-  subdir: 'gtracr/lib',
+  subdir: 'gtracr',
 )

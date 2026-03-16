@@ -44,3 +44,4 @@ else
 endif
 
 subdir('src/gtracr')
+subdir('src/cpp')

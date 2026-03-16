@@ -50,11 +50,11 @@ ruff check --fix src/gtracr/ examples/ && ruff format src/gtracr/ examples/
 
 ### C++ (clang-format)
 
-Config is in `.clang-format` (project root). Vendored headers in `src/gtracr/lib/extern/` are
+Config is in `.clang-format` (project root). Vendored headers in `src/cpp/extern/` are
 excluded via a local `.clang-format` with `DisableFormat: true`.
 
 ```bash
-find src/gtracr/lib/src src/gtracr/lib/include src/gtracr/lib/gpu \
+find src/cpp/src src/cpp/include src/cpp/gpu \
   -name '*.cpp' -o -name '*.hpp' | xargs clang-format -i
 ```
 
@@ -124,7 +124,12 @@ User (Python)
   │       evaluate()       — Python-orchestrated (ProcessPool or ThreadPool)
   │       evaluate_batch() — entire MC loop in C++ (BatchGMRC)
   │
-  └── pybind11 extension: gtracr.lib._libgtracr
+  ├── bfield subpackage (src/gtracr/bfield/)
+  │     ├── MagneticField  — ideal dipole (1/r³ falloff)
+  │     ├── IGRF13         — Python IGRF-13 spherical harmonics
+  │     └── IGRFTable      — Python wrapper around C++ tabulated IGRF
+  │
+  └── pybind11 extension: gtracr._libgtracr  (src/cpp/)
         │
         ├── TrajectoryTracer (C++)       ← PRIMARY integrator
         │     RK4/Boris/RK45 integration of the Lorentz ODE in spherical coords.
@@ -141,7 +146,7 @@ User (Python)
         └── IGRF Table (C++)             ← B-field model (tabulated)
               3D lookup table (64×128×256 grid, 24 MB) with trilinear
               interpolation. Generated from IGRF, cached to disk as .npy.
-              Located in src/gtracr/lib/gpu/igrf_table.{hpp,cpp}.
+              Located in src/cpp/gpu/igrf_table.{hpp,cpp}.
 ```
 
 ### Coordinate System

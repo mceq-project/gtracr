@@ -1,19 +1,18 @@
+"""
+Evaluate geomagnetic rigidity cutoffs (GMRC) for a location via Monte Carlo
+and produce scatter and heatmap plots.
+"""
+
 import argparse
-import os
 import pickle
+from pathlib import Path
 
 from gtracr.geomagnetic_cutoffs import GMRC
 from gtracr.plotting import plot_gmrc_heatmap, plot_gmrc_scatter
 from gtracr.utils import location_dict
 
-# add filepath of gtracr to sys.path
-CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
-PARENT_DIR = os.path.dirname(CURRENT_DIR)
-PLOT_DIR = os.path.join(PARENT_DIR, "..", "gtracr_plots")
-
-# create directory if gtracr_plots dir does not exist
-if not os.path.isdir(PLOT_DIR):
-    os.mkdir(PLOT_DIR)
+PLOT_DIR = Path(__file__).parent.parent.parent / "gtracr_plots"
+PLOT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def export_as_pkl(fpath, ds):
@@ -23,15 +22,15 @@ def export_as_pkl(fpath, ds):
 
 def _run_gmrc(gmrc, args):
     """Evaluate gmrc, then plot."""
-    plabel = "p+"
+    plabel = args.particle
     ngrid_azimuth = 360
     ngrid_zenith = 180
     locname = gmrc.location
 
     if args.eval_mode == "batch":
-        gmrc.evaluate_batch()
+        gmrc.evaluate_batch(dt=args.dt, max_time=args.max_time)
     else:
-        gmrc.evaluate()
+        gmrc.evaluate(dt=args.dt, max_time=args.max_time)
 
     print("Plotting...")
 
@@ -67,38 +66,14 @@ def _run_gmrc(gmrc, args):
 
 
 def eval_gmrc(args):
-    # create particle trajectory with desired particle and energy
-    plabel = "p+"
-    particle_altitude = 100.0
+    locations = list(location_dict.keys()) if args.eval_all else [args.location]
 
-    # change initial parameters if debug mode is set
-    if args.debug_mode:
-        args.iter_num = 10
-        args.show_plot = True
-
-    # --field-mode table overrides bfield_type to use the tabulated IGRF path,
-    # which now generates the table once and shares it across threads.
-    bfield_type = "table" if args.field_mode == "table" else args.bfield_type
-
-    if args.eval_all:
-        for locname in list(location_dict.keys()):
-            gmrc = GMRC(
-                location=locname,
-                iter_num=args.iter_num,
-                particle_altitude=particle_altitude,
-                bfield_type=bfield_type,
-                particle_type=plabel,
-                n_workers=args.n_workers,
-                solver=args.solver,
-            )
-            _run_gmrc(gmrc, args)
-    else:
+    for locname in locations:
         gmrc = GMRC(
-            location=args.locname,
+            location=locname,
             iter_num=args.iter_num,
-            particle_altitude=particle_altitude,
-            bfield_type=bfield_type,
-            particle_type=plabel,
+            bfield_type=args.bfield_type,
+            particle_type=args.particle,
             n_workers=args.n_workers,
             solver=args.solver,
         )
@@ -107,83 +82,80 @@ def eval_gmrc(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Evaluates the geomagnetic cutoff rigidities of some location for N iterations using a Monte-Carlo sampling scheme, and produces a heatmap for such geomagnetic cutoff rigidities."
+        description=(
+            "Evaluate geomagnetic cutoff rigidities via Monte Carlo "
+            "and produce heatmap plots."
+        )
     )
     parser.add_argument(
-        "-ln",
-        "--locname",
-        dest="locname",
+        "--location",
         default="Kamioka",
-        type=str,
-        help="Detector location to evaluate GM cutoffs.",
+        help="Detector location name (default: Kamioka).",
     )
     parser.add_argument(
-        "-n",
-        "--iter_num",
+        "--particle",
+        default="p+",
+        choices=["p+", "p-", "e+", "e-"],
+        help="Particle label (default: p+).",
+    )
+    parser.add_argument(
+        "--iter-num",
         dest="iter_num",
         default=50000,
         type=int,
-        help="Number of iterations for Monte-Carlo.",
+        help="Number of Monte Carlo iterations (default: 50000).",
     )
     parser.add_argument(
-        "-bf",
-        "--bfield",
+        "--bfield-type",
         dest="bfield_type",
         default="igrf",
-        type=str,
-        help="The geomagnetic field model used.",
-    )
-    parser.add_argument(
-        "-a",
-        "--all",
-        dest="eval_all",
-        action="store_true",
-        help="Evaluate GM cutoffs for all locations.",
-    )
-    parser.add_argument(
-        "--show",
-        dest="show_plot",
-        action="store_true",
-        help="Show the plot in an external display.",
-    )
-    parser.add_argument(
-        "-d",
-        "--debug",
-        dest="debug_mode",
-        action="store_true",
-        help="Enable debug mode. Sets N = 10 and enable --show=True.",
-    )
-    parser.add_argument(
-        "-w",
-        "--workers",
-        dest="n_workers",
-        default=None,
-        type=int,
-        help="Number of parallel worker processes (default: physical core count).",
+        choices=["igrf", "dipole", "table"],
+        help="Magnetic field model (default: igrf).",
     )
     parser.add_argument(
         "--solver",
-        dest="solver",
         default="rk4",
         choices=["rk4", "boris", "rk45"],
         help="Integration method: rk4 (default), boris, rk45 (adaptive).",
     )
     parser.add_argument(
-        "--field-mode",
-        dest="field_mode",
-        default="igrf",
-        choices=["igrf", "table"],
-        help="Field evaluation mode: igrf (direct IGRF, default) "
-        "or table (precomputed 3-D lookup table, shared across threads).",
+        "--dt",
+        type=float,
+        default=1e-5,
+        help="Integration step size in seconds (default: 1e-5).",
+    )
+    parser.add_argument(
+        "--max-time",
+        dest="max_time",
+        type=float,
+        default=1.0,
+        help="Maximum integration time in seconds (default: 1.0).",
     )
     parser.add_argument(
         "--eval-mode",
         dest="eval_mode",
         default="batch",
         choices=["batch", "legacy"],
-        help="Evaluation mode: batch (default, entire MC loop in C++) "
-        "or legacy (Python MC loop with per-direction C++ calls).",
+        help="Evaluation mode: batch (C++ MC loop, default) or legacy (Python loop).",
     )
-
+    parser.add_argument(
+        "--n-workers",
+        dest="n_workers",
+        default=None,
+        type=int,
+        help="Number of parallel workers (default: all CPU cores).",
+    )
+    parser.add_argument(
+        "--all",
+        dest="eval_all",
+        action="store_true",
+        help="Evaluate GMRC for all pre-defined locations.",
+    )
+    parser.add_argument(
+        "--show-plot",
+        dest="show_plot",
+        action="store_true",
+        help="Show plots in an interactive window.",
+    )
     args = parser.parse_args()
     eval_gmrc(args)

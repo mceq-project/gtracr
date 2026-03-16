@@ -1,6 +1,4 @@
-"""
-Library class that allows us to add locations of varying latitude and longitude
-"""
+"""Geographic detector location data class."""
 
 
 class Location:
@@ -26,9 +24,7 @@ class Location:
         self.altitude = altitude
 
     def __str__(self):
-        return f"{self.name} : Latitude : {self.latitude}, Longitude : {self.longitude}, Elevation : {self.altitude}"
-
-
-if __name__ == "__main__":
-    icecube = Location("IceCube", 89.99, -63.453056, 0.0)
-    print(icecube)
+        return (
+            f"{self.name}: latitude={self.latitude}, "
+            f"longitude={self.longitude}, altitude={self.altitude} km"
+        )

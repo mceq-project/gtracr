@@ -1,23 +1,23 @@
 """
-Python-level IGRF lookup table.
+Python-level IGRF lookup table with trilinear interpolation.
 
-Mirrors the logic in gtracr/lib/gpu/igrf_table.cpp using numpy so that the
-tabulated field can be used from Python (e.g. via pTrajectoryTracer) without
-requiring GPU support.
+Mirrors the C++ table in ``src/cpp/gpu/igrf_table.cpp`` using NumPy so the
+tabulated field can be used from Python (e.g. ``pTrajectoryTracer``) without
+GPU/HIP support.
 
-Grid layout (matches the C++ constants in igrf_table.hpp):
-  Nr=64    log-spaced radial points  [1 RE … 10 RE]
-  Ntheta=128  linear colatitude       [0 … π]
-  Nphi=256    linear longitude        [0 … 2π)
-  Layout:  table[comp, ir, itheta, iphi]  — component-major, shape (3, Nr, Ntheta, Nphi)
+Grid layout (matches ``igrf_table.hpp``):
+  Nr = 64     log-spaced radial points  [1 RE … 10 RE]
+  Ntheta = 128  linear colatitude       [0 … π]
+  Nphi = 256    linear longitude        [0 … 2π)
+  shape: ``(3, Nr, Ntheta, Nphi)`` — component-major
 """
 
-import os
 from datetime import date as _date
+from pathlib import Path
 
 import numpy as np
 
-from gtracr.lib.constants import EARTH_RADIUS
+from gtracr.constants import EARTH_RADIUS
 from gtracr.utils import ymd_to_dec
 
 # Grid dimensions — keep in sync with igrf_table.hpp
@@ -25,34 +25,34 @@ NR = 64
 NTHETA = 128
 NPHI = 256
 
-_R_MIN = EARTH_RADIUS  # 1 RE  in metres
-_R_MAX = 10.0 * EARTH_RADIUS  # 10 RE in metres
+_R_MIN = EARTH_RADIUS
+_R_MAX = 10.0 * EARTH_RADIUS
 
-_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
+_DATA_DIR = Path(__file__).parent.parent / "data"
 
 
 class IGRFTable:
     """
-    Precomputed IGRF lookup table with trilinear interpolation.
+    Pre-computed IGRF lookup table with trilinear interpolation.
 
-    Provides the same ``values(r, theta, phi) -> (Br, Btheta, Bphi)``
-    interface as ``MagneticField`` / ``IGRF13`` so it can be used as a
-    drop-in replacement in ``pTrajectoryTracer``.
+    Provides the same ``values(r, theta, phi) → (Br, Btheta, Bphi)``
+    interface as ``MagneticField`` / ``IGRF13`` for use as a drop-in
+    replacement in ``pTrajectoryTracer``.
 
     Parameters
     ----------
-    igrf_obj : _libgtracr.IGRF, optional
-        An already-initialised C++ IGRF object.  When *None* a new one is
-        constructed from the bundled igrf13.json using today's date.
+    igrf_obj : ``gtracr._libgtracr.IGRF``, optional
+        Initialised C++ IGRF object.  When *None* a new one is built from
+        the bundled ``igrf13.json`` using today's date.
     verbose : bool
         Print progress while building the table (default False).
     """
 
     def __init__(self, igrf_obj=None, verbose=False):
         if igrf_obj is None:
-            from gtracr.lib._libgtracr import IGRF
+            from gtracr._libgtracr import IGRF
 
-            datapath = os.path.abspath(_DATA_DIR)
+            datapath = str(_DATA_DIR.resolve())
             dec_date = float(ymd_to_dec(str(_date.today())))
             igrf_obj = IGRF(datapath, dec_date)
 
@@ -60,20 +60,14 @@ class IGRFTable:
         self._r_max = _R_MAX
         self._log_r_min = np.log(_R_MIN)
         self._log_r_max = np.log(_R_MAX)
-
         self._table = self._build(igrf_obj, verbose)
 
-    # ------------------------------------------------------------------
-    # Table construction
-    # ------------------------------------------------------------------
-
     def _build(self, igrf, verbose):
-        """Evaluate igrf.values() on every grid point; return (3,Nr,Nt,Np) float32 array."""
+        """Evaluate igrf.values() on every grid point; return (3,Nr,Nt,Np) float32."""
         table = np.empty((3, NR, NTHETA, NPHI), dtype=np.float32)
 
-        # Precompute grid vectors
-        t_vec = np.arange(NR, dtype=np.float64) / (NR - 1)  # 0..1
-        r_vec = _R_MIN * (_R_MAX / _R_MIN) ** t_vec  # log-spaced [m]
+        t_vec = np.arange(NR, dtype=np.float64) / (NR - 1)
+        r_vec = _R_MIN * (_R_MAX / _R_MIN) ** t_vec
         th_vec = np.arange(NTHETA, dtype=np.float64) / (NTHETA - 1) * np.pi
         ph_vec = np.arange(NPHI, dtype=np.float64) / NPHI * 2.0 * np.pi
 
@@ -92,47 +86,43 @@ class IGRFTable:
 
         return table
 
-    # ------------------------------------------------------------------
-    # Lookup (trilinear interpolation)
-    # ------------------------------------------------------------------
-
     def values(self, r, theta, phi):
         """
         Interpolate B-field from the table.
 
         Parameters
         ----------
-        r, theta, phi : float
-            Position in geocentric spherical coordinates.
-            r in metres, theta in radians [0,π], phi in radians (any range).
+        r : float
+            Radial distance in metres.
+        theta : float
+            Colatitude in radians ``[0, π]``.
+        phi : float
+            Longitude in radians (any range, wrapped to ``[0, 2π)``).
 
         Returns
         -------
-        tuple of float : (Br, Btheta, Bphi)  in Tesla
+        tuple of float
+            ``(Br, Btheta, Bphi)`` in Tesla.
         """
-        # ---- radial index (log-spaced) --------------------------------
         log_r = np.log(max(r, self._r_min))
         fr = (log_r - self._log_r_min) / (self._log_r_max - self._log_r_min) * (NR - 1)
         fr = float(np.clip(fr, 0.0, NR - 1 - 1e-6))
         ir0 = int(fr)
         wr = fr - ir0
 
-        # ---- theta index (linear) ------------------------------------
         ft = theta * (NTHETA - 1) / np.pi
         ft = float(np.clip(ft, 0.0, NTHETA - 1 - 1e-6))
         it0 = int(ft)
         wt = ft - it0
 
-        # ---- phi index (linear, periodic) ----------------------------
         two_pi = 2.0 * np.pi
-        phi_w = phi - two_pi * np.floor(phi / two_pi)  # wrap to [0, 2π)
+        phi_w = phi - two_pi * np.floor(phi / two_pi)
         fp = phi_w * NPHI / two_pi
         fp = float(np.clip(fp, 0.0, NPHI - 1e-6))
         ip0 = int(fp) % NPHI
         ip1 = (ip0 + 1) % NPHI
         wp = fp - int(fp)
 
-        # ---- trilinear interpolation ---------------------------------
         t = self._table
         result = []
         for c in range(3):
@@ -157,18 +147,22 @@ class IGRFTable:
 
         return result[0], result[1], result[2]
 
-    # ------------------------------------------------------------------
-    # Validation helper
-    # ------------------------------------------------------------------
-
     def validate(self, igrf_obj, n=10000, rng_seed=42):
         """
-        Compare table interpolation against direct ``igrf_obj.values()`` at
-        *n* random points.
+        Compare table interpolation against direct IGRF evaluation.
+
+        Parameters
+        ----------
+        igrf_obj : ``gtracr._libgtracr.IGRF``
+            Reference IGRF object.
+        n : int
+            Number of random test points (default 10 000).
+        rng_seed : int
+            RNG seed for reproducibility.
 
         Returns
         -------
-        max_rel_err : float
+        float
             Maximum relative error across all components and test points.
             Target: < 0.001 (0.1 %).
         """
@@ -186,5 +180,4 @@ class IGRFTable:
                 rel = abs(v - d) / (abs(d) + eps)
                 if rel > max_rel:
                     max_rel = rel
-
         return max_rel

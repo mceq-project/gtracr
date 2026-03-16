@@ -4,8 +4,8 @@ Tests for gtracr/lib/particle.py and gtracr/lib/location.py
 
 import numpy as np
 
-from gtracr.lib.location import Location
-from gtracr.lib.particle import Particle
+from gtracr.location import Location
+from gtracr.particle import Particle
 
 # ---------------------------------------------------------------------------
 # Particle tests

@@ -1,25 +1,25 @@
 """Geomagnetic rigidity cutoff evaluation via Monte Carlo sampling."""
 
-import os
 import threading
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from datetime import date
+from pathlib import Path
 
 import numpy as np
 from scipy.interpolate import griddata
 from tqdm import tqdm
 
-from gtracr.lib._libgtracr import TrajectoryTracer as CppTrajectoryTracer
-from gtracr.lib.constants import (
+from gtracr._libgtracr import TrajectoryTracer as CppTrajectoryTracer
+from gtracr.constants import (
     EARTH_RADIUS,
     ELEMENTARY_CHARGE,
     KG_M_S_PER_GEVC,
     KG_PER_GEVC2,
+    SOLVER_CHARS,
 )
 from gtracr.trajectory import Trajectory
 
-CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
-PARENT_DIR = os.path.dirname(CURRENT_DIR)
+_DATA_DIR = Path(__file__).parent / "data"
 
 _thread_local = threading.local()
 
@@ -59,7 +59,7 @@ def _init_worker(common_params):
     charge_si = particle.charge * ELEMENTARY_CHARGE
     mass_si = particle.mass * KG_PER_GEVC2
 
-    datapath = os.path.join(CURRENT_DIR, "data")
+    datapath = str(_DATA_DIR.resolve())
     dec_date = float(ymd_to_dec(date_str))
     igrf_params = (datapath, dec_date)
 
@@ -85,7 +85,7 @@ def _init_worker(common_params):
 
 
 # Directory for cached IGRF tables (next to the data files).
-_TABLE_CACHE_DIR = os.path.join(CURRENT_DIR, "data")
+_TABLE_CACHE_DIR = _DATA_DIR
 
 
 def _get_or_generate_igrf_table(datapath, dec_date):
@@ -95,17 +95,15 @@ def _get_or_generate_igrf_table(datapath, dec_date):
     constants (Nr, Ntheta, Nphi).  The cache files (.npy for the table,
     .npz for the params) are stored alongside igrf13.json.
     """
-    from gtracr.lib._libgtracr import TableParams
-    from gtracr.lib._libgtracr import generate_igrf_table as _gen_table
+    from gtracr._libgtracr import TableParams
+    from gtracr._libgtracr import generate_igrf_table as _gen_table
 
-    cache_table = os.path.join(_TABLE_CACHE_DIR, f"igrf_table_{dec_date:.4f}.npy")
-    cache_params = os.path.join(
-        _TABLE_CACHE_DIR, f"igrf_table_{dec_date:.4f}_params.npz"
-    )
+    cache_table = _TABLE_CACHE_DIR / f"igrf_table_{dec_date:.4f}.npy"
+    cache_params = _TABLE_CACHE_DIR / f"igrf_table_{dec_date:.4f}_params.npz"
 
-    if os.path.isfile(cache_table) and os.path.isfile(cache_params):
-        table_flat = np.load(cache_table)
-        d = np.load(cache_params)
+    if cache_table.is_file() and cache_params.is_file():
+        table_flat = np.load(str(cache_table))
+        d = np.load(str(cache_params))
         table_params = TableParams()
         table_params.r_min = float(d["r_min"])
         table_params.r_max = float(d["r_max"])
@@ -118,9 +116,9 @@ def _get_or_generate_igrf_table(datapath, dec_date):
 
     # Generate from scratch and cache.
     table_flat, table_params = _gen_table(datapath, dec_date)
-    np.save(cache_table, table_flat)
+    np.save(str(cache_table), table_flat)
     np.savez(
-        cache_params,
+        str(cache_params),
         r_min=table_params.r_min,
         r_max=table_params.r_max,
         log_r_min=table_params.log_r_min,
@@ -365,9 +363,10 @@ class GMRC:
         self.bfield_type = bfield_type
         self.plabel = particle_type
         self.date = date
+        import os
+
         self.n_workers = n_workers if n_workers is not None else (os.cpu_count() or 1)
-        _SOLVER_CHARS = {"rk4": "r", "boris": "b", "rk45": "a"}
-        self.solver_char = _SOLVER_CHARS.get(solver.lower(), "r")
+        self.solver_char = SOLVER_CHARS.get(solver.lower(), "r")
         self.atol = atol
         self.rtol = rtol
         # Rigidity configurations
@@ -420,7 +419,7 @@ class GMRC:
             # workers only execute GIL-released C++ code.
             from gtracr.utils import ymd_to_dec
 
-            datapath = os.path.join(CURRENT_DIR, "data")
+            datapath = str(_DATA_DIR.resolve())
             dec_date = float(ymd_to_dec(self.date))
             igrf_params = (datapath, dec_date)
             shared_table, table_params = _get_or_generate_igrf_table(datapath, dec_date)
@@ -577,8 +576,8 @@ class GMRC:
         """
         import time as _time
 
-        from gtracr.lib._libgtracr import BatchGMRCParams, TableParams
-        from gtracr.lib._libgtracr import batch_gmrc_evaluate as _batch_eval
+        from gtracr._libgtracr import BatchGMRCParams, TableParams
+        from gtracr._libgtracr import batch_gmrc_evaluate as _batch_eval
         from gtracr.utils import location_dict, particle_dict, ymd_to_dec
 
         t_wall_start = _time.monotonic()
@@ -591,7 +590,7 @@ class GMRC:
             f"{field_label})..."
         )
 
-        datapath = os.path.join(CURRENT_DIR, "data")
+        datapath = str(_DATA_DIR.resolve())
         dec_date = float(ymd_to_dec(self.date))
         igrf_params = (datapath, dec_date)
 

@@ -2,12 +2,12 @@
 Tests for gtracr/trajectory.py — branch and feature coverage.
 """
 
-import os
+from pathlib import Path
 
 import numpy as np
 import pytest
 
-from gtracr.lib.constants import EARTH_RADIUS
+from gtracr.constants import EARTH_RADIUS
 from gtracr.trajectory import Trajectory
 
 # ---------------------------------------------------------------------------
@@ -252,7 +252,7 @@ def test_ptrajectorytracer_dipole():
     Note: start_altitude is an altitude in meters from surface (not absolute radius).
     The termination check uses r < start_altitude + EARTH_RADIUS.
     """
-    from gtracr.lib.trajectory_tracer import pTrajectoryTracer
+    from gtracr._fallback import pTrajectoryTracer
 
     charge_raw = 1  # elementary charges → constructor converts to coulombs
     mass_raw = 0.937272  # GeV/c² → constructor converts to kg
@@ -279,7 +279,7 @@ def test_ptrajectorytracer_dipole():
 
 def test_ptrajectorytracer_get_trajectory():
     """pTrajectoryTracer.evaluate_and_get_trajectory() returns a dict"""
-    from gtracr.lib.trajectory_tracer import pTrajectoryTracer
+    from gtracr._fallback import pTrajectoryTracer
 
     charge_raw = 1
     mass_raw = 0.937272
@@ -305,15 +305,9 @@ def test_ptrajectorytracer_get_trajectory():
 
 def test_ptrajectorytracer_igrf():
     """pTrajectoryTracer with igrf bfield_type should initialize without error"""
-    from gtracr.lib.trajectory_tracer import pTrajectoryTracer
+    from gtracr._fallback import pTrajectoryTracer
 
-    data_dir = os.path.join(
-        os.path.dirname(os.path.realpath(__file__)),
-        "..",
-        "src",
-        "gtracr",
-        "data",
-    )
+    data_dir = str(Path(__file__).parent.parent / "src" / "gtracr" / "data")
 
     charge_raw = 1
     mass_raw = 0.937272
@@ -339,11 +333,11 @@ def test_ptrajectorytracer_igrf():
 
 def test_igrf13_leap_year():
     """IGRF13 with a leap year date covers the leap_year=True branch (line 111)"""
-    from gtracr.lib.magnetic_field import IGRF13
+    from gtracr.bfield.igrf import IGRF13
 
     pyigrf = IGRF13(2000)  # 2000 is a leap year
     # Just verify it initializes and returns valid values
-    from gtracr.lib.constants import EARTH_RADIUS
+    from gtracr.constants import EARTH_RADIUS
 
     bf = pyigrf.values(EARTH_RADIUS, np.pi / 2.0, np.pi)
     assert len(bf) == 3
@@ -351,10 +345,10 @@ def test_igrf13_leap_year():
 
 def test_igrf13_large_theta():
     """IGRF13.values() with theta > pi normalizes it (covers line 140)"""
-    from gtracr.lib.magnetic_field import IGRF13
+    from gtracr.bfield.igrf import IGRF13
 
     pyigrf = IGRF13(2015)
-    from gtracr.lib.constants import EARTH_RADIUS
+    from gtracr.constants import EARTH_RADIUS
 
     # theta in radians: convert to degrees inside values()
     # theta_deg = theta_rad * DEG_PER_RAD
@@ -366,10 +360,10 @@ def test_igrf13_large_theta():
 
 def test_igrf13_large_phi():
     """IGRF13.values() with phi > 2*pi normalizes it (covers line 143)"""
-    from gtracr.lib.magnetic_field import IGRF13
+    from gtracr.bfield.igrf import IGRF13
 
     pyigrf = IGRF13(2015)
-    from gtracr.lib.constants import EARTH_RADIUS
+    from gtracr.constants import EARTH_RADIUS
 
     # phi_rad = 7.5 → phi_deg ≈ 430 > 360, triggers normalization
     phi_large = 7.5  # radians → ~430 degrees > 360
@@ -379,7 +373,7 @@ def test_igrf13_large_phi():
 
 def test_ptrajectorytracer_invalid_bfield():
     """pTrajectoryTracer with invalid bfield_type raises Exception"""
-    from gtracr.lib.trajectory_tracer import pTrajectoryTracer
+    from gtracr._fallback import pTrajectoryTracer
 
     with pytest.raises(Exception):
         pTrajectoryTracer(
@@ -391,7 +385,7 @@ def test_ptrajectorytracer_invalid_bfield():
 
 def test_ptrajectorytracer_igrf_no_params():
     """pTrajectoryTracer with igrf but no igrf_params raises Exception"""
-    from gtracr.lib.trajectory_tracer import pTrajectoryTracer
+    from gtracr._fallback import pTrajectoryTracer
 
     with pytest.raises(Exception):
         pTrajectoryTracer(
@@ -412,8 +406,8 @@ def test_ptrajectorytracer_escaped():
     large outward radial momentum so it moves outward quickly past 6671200.
     start_altitude is set to a small value so the lower bound check doesn't fire.
     """
-    from gtracr.lib.constants import KG_M_S_PER_GEVC
-    from gtracr.lib.trajectory_tracer import pTrajectoryTracer
+    from gtracr._fallback import pTrajectoryTracer
+    from gtracr.constants import KG_M_S_PER_GEVC
 
     charge_raw = 1
     mass_raw = 0.937272
@@ -439,8 +433,8 @@ def test_ptrajectorytracer_escaped():
 
 def test_ptrajectorytracer_get_traj_escaped():
     """pTrajectoryTracer evaluate_and_get_trajectory: particle escapes (lines 274-275)"""
-    from gtracr.lib.constants import KG_M_S_PER_GEVC
-    from gtracr.lib.trajectory_tracer import pTrajectoryTracer
+    from gtracr._fallback import pTrajectoryTracer
+    from gtracr.constants import KG_M_S_PER_GEVC
 
     charge_raw = 1
     mass_raw = 0.937272

@@ -1,15 +1,13 @@
-import os
+from pathlib import Path
 
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
 
-from gtracr.lib.constants import KG_M_S_PER_GEVC
+from gtracr.constants import KG_M_S_PER_GEVC
 
-CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
-ROOT_DIR = os.path.dirname(os.path.dirname(CURRENT_DIR))
-PLOT_DIR = os.path.join(ROOT_DIR, "gtracr_plots")
+PLOT_DIR = Path(__file__).parent.parent.parent / "gtracr_plots"
 
 COLOR_LIST = ["b", "r", "c", "m", "y", "g", "k"]
 
@@ -103,8 +101,8 @@ def plot_3dtraj(
         if file_name.find("png") < 0 or file_name.find("jpg") < 0:
             file_name = file_name.split(".")[0] + ".png"
 
-        # mpld3.save_html(fig_3d, os.path.join(PLOT_DIR, "test_trajectory_3d.html"))
-        plt.savefig(os.path.join(plotdir_path, file_name))
+        # mpld3.save_html(fig_3d, Path(PLOT_DIR) / "test_trajectory_3d.html")
+        plt.savefig(Path(plotdir_path) / file_name)
 
         if show_plot:
             plt.show()
@@ -164,7 +162,7 @@ def plot_3dtraj(
             fig.show()
 
         # write to html
-        fig.write_html(os.path.join(plotdir_path, file_name))
+        fig.write_html(Path(plotdir_path) / file_name)
 
 
 def plot_2dtraj(
@@ -228,8 +226,8 @@ def plot_2dtraj(
         plt.show()
     # html doesnt work with latex labels and suptitle, so its deprecated for now
     # mpld3.save_html(fig_proj,
-    #                 os.path.join(PLOT_DIR, "test_trajectory_proj.html"))
-    plt.savefig(os.path.join(PLOT_DIR, "test_trajectory_proj.png"))
+    #                 Path(PLOT_DIR) / "test_trajectory_proj.html")
+    plt.savefig(Path(PLOT_DIR) / "test_trajectory_proj.png")
 
 
 def plot_traj_projection(arr1, arr2, t_arr, fig, ax, label1, label2, plot_colorbar):
@@ -319,7 +317,7 @@ def plot_traj_momentum(trajectory_data, p0, show_plot=False):
 
     if show_plot:
         plt.show()
-    plt.savefig(os.path.join(PLOT_DIR, "pmag_plot.png"))
+    plt.savefig(Path(PLOT_DIR) / "pmag_plot.png")
 
 
 def plot_gmrc_scatter(
@@ -373,7 +371,7 @@ def plot_gmrc_scatter(
     ax.set_ylim([180.0, 0.0])
 
     plt.savefig(
-        os.path.join(plotdir_path, f"{locname}_{plabel}_{bfield_type}_scatterplot.png"),
+        Path(plotdir_path) / f"{locname}_{plabel}_{bfield_type}_scatterplot.png",
         dpi=800,
     )
 
@@ -454,38 +452,4 @@ def plot_gmrc_heatmap(
     if show_plot:
         plt.show()
 
-    plt.savefig(
-        os.path.join(plotdir_path, f"{locname}_{plabel}_{bfield_type}_cutoffplot.png")
-    )
-
-    # fig, ax = plt.subplots(figsize=(12, 9))
-
-    # figures for the projections
-    # fig_proj, ax_proj = plt.subplots(ncols=2,
-    #                                  nrows=2,
-    #                                  figsize=(16, 12),
-    #                                  constrained_layout=True)
-
-    # # relabel them for each projection type
-
-    # ax_xy = ax_proj[0, 0]
-    # ax_xz = ax_proj[0, 1]
-    # ax_yz = ax_proj[1, 0]
-    # ax_mag = ax_proj[1, 1]
-
-    # for (t_arr, x_arr, y_arr, z_arr) in data_list:
-
-    #     # projection onto xy plane
-    #     plot_traj_projection(x_arr, y_arr, t_arr, fig_proj, ax_xy, "x", "y")
-    #     # projection onto xz plane
-    #     plot_traj_projection(x_arr, z_arr, t_arr, fig_proj, ax_xz, "x", "z")
-    #     # projection onto yz plane
-    #     plot_traj_projection(y_arr, z_arr, t_arr, fig_proj, ax_yz, "y", "z")
-
-    #     mag_arr = np.linalg.norm(np.array([x_arr, y_arr, z_arr]), axis=0)
-
-    #     # magnitude vs time
-    #     ax_mag.plot(t_arr, mag_arr)
-    #     ax_mag.set_xlabel("Time [s]")
-    #     ax_mag.set_ylabel(r"$\| \vec{r} \| [R_E]$")
-    #     ax_mag.set_title("Time Evolution of the Magnitude of the Trajectory")
+    plt.savefig(Path(plotdir_path) / f"{locname}_{plabel}_{bfield_type}_cutoffplot.png")

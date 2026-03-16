@@ -23,28 +23,24 @@ Outputs
 """
 
 import argparse
-import os
-import sys
 import time
+from pathlib import Path
 
 import matplotlib
-import numpy as np
 
 matplotlib.use("Agg")  # non-interactive backend; use TkAgg locally if desired
 import matplotlib.pyplot as plt
+import numpy as np
 
-CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
-PARENT_DIR = os.path.dirname(CURRENT_DIR)
-PLOT_DIR = os.path.join(PARENT_DIR, "..", "gtracr_plots")
-
-sys.path.insert(0, PARENT_DIR)
-from gtracr.lib._libgtracr import TrajectoryTracer as CppTrajectoryTracer
-from gtracr.lib.constants import (
+from gtracr._libgtracr import TrajectoryTracer as CppTrajectoryTracer
+from gtracr.constants import (
     EARTH_RADIUS,
     ELEMENTARY_CHARGE,
     KG_PER_GEVC2,
 )
 from gtracr.trajectory import Trajectory
+
+PLOT_DIR = Path(__file__).parent.parent.parent / "gtracr_plots"
 
 # ---------------------------------------------------------------------------
 # Reference particle / location
@@ -100,7 +96,6 @@ def section_accuracy(show_plots):
     print("=" * 72)
 
     # Use RK45 at tight tolerance as the reference solution.
-    # For a forbidden (atmosphere-hit) trajectory the endpoint is well-defined.
     data_ref, traj_ref, _ = run_trajectory(
         "rk45", rigidity=RIGIDITY_FORBIDDEN, dt=DT_REF, atol=1e-8, rtol=1e-10
     )
@@ -229,12 +224,10 @@ def section_performance(n_perf, show_plots):
     print(f"SECTION 3: Wall-clock time for {n_perf} trajectory evaluations")
     print("=" * 72)
 
-    loc_name = LOCATION
-
     # Precompute initial conditions once (shared across solvers).
     traj0 = Trajectory(
         plabel=PLABEL,
-        location_name=loc_name,
+        location_name=LOCATION,
         zenith_angle=45.0,
         azimuth_angle=90.0,
         rigidity=RIGIDITY_FORBIDDEN,
@@ -322,7 +315,6 @@ def section_trajectory_overlay(show_plots):
         for ax, (cx, cy) in zip(ax_list, axes_pairs):
             ax.plot(d[cx], d[cy], label=label, color=color, lw=lw, alpha=0.85)
 
-    # Draw Earth circle on X–Z and X–Y planes
     theta_circ = np.linspace(0, 2 * np.pi, 300)
     for ax in ax_list:
         ax.plot(np.cos(theta_circ), np.sin(theta_circ), "k--", lw=0.8, label="Earth")
@@ -343,8 +335,8 @@ def section_trajectory_overlay(show_plots):
 
 
 def _savefig(fig, fname):
-    os.makedirs(PLOT_DIR, exist_ok=True)
-    fpath = os.path.join(PLOT_DIR, fname)
+    PLOT_DIR.mkdir(parents=True, exist_ok=True)
+    fpath = PLOT_DIR / fname
     fig.tight_layout()
     fig.savefig(fpath, dpi=150)
     plt.close(fig)

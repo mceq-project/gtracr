@@ -1,21 +1,18 @@
 """
-Evaluates the benchmarks between different versions of the code
+Evaluates the benchmarks between different versions of the code.
 """
 
-import os
 import pickle
 import time
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from gtracr.trajectory import Trajectory
 
-CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
-PARENT_DIR = os.path.dirname(CURRENT_DIR)
-
-DATA_DIR = os.path.join(PARENT_DIR, "src", "gtracr", "data")
-PLOT_DIR = os.path.join(PARENT_DIR, "..", "gtracr_plots")
+DATA_DIR = Path(__file__).parent.parent / "src" / "gtracr" / "data"
+PLOT_DIR = Path(__file__).parent.parent.parent / "gtracr_plots"
 
 
 def read_pkl(fpath):
@@ -30,26 +27,22 @@ def write_pkl(fpath, datadict):
 
 
 def get_evaltime(
-    iter_num, initial_variables, bfield_type, use_unvec=False, use_python=False
+    iter_num, initial_variables, bfield_type, use_python=False
 ):
     """
-    Evaluates iter_num number of iterations of the same trajectory calculation and return the average evaluation time for those number of iterations
+    Evaluate iter_num trajectories and return the average wall-clock time.
 
     Parameters
     ----------
-
-    - iter_num : int
-        the number of iterations to evaluate for
-    - initial_variables : tuple
-        initial parameters to initialize trajectory
-    - bfield_type : str
-        type of magnetic field model to use
-    - use_unvec : bool
-        whether to use unvectorized version of Trajectory evaluator or not (default False)
-    - use_python : bool
-        whether to use Python version of Trajectory evaluator or not (default False)
+    iter_num : int
+        Number of iterations to evaluate.
+    initial_variables : tuple
+        (plabel, zenith, azimuth, part_alt, lat, lng, dec_alt, rig)
+    bfield_type : str
+        Magnetic field model to use ('igrf', 'dipole', or 'table').
+    use_python : bool
+        Use pure-Python integrator instead of C++ (default False).
     """
-
     plabel, zenith, azimuth, part_alt, lat, lng, dec_alt, rig = initial_variables
 
     trajectory = Trajectory(
@@ -64,97 +57,55 @@ def get_evaltime(
         bfield_type=bfield_type,
     )
 
-    eval_time = 0.0  # initialize evaluation time
-    dt = 1e-5  # step size in integration
-    max_step = 10000  # max steps in integration
+    eval_time = 0.0
+    dt = 1e-5
+    max_step = 10000
 
-    for i in range(int(np.floor(iter_num))):
-        # start counter
-        # perf counter for more precise time evaluations
+    for _ in range(int(np.floor(iter_num))):
         start_time = time.perf_counter()
         trajectory.get_trajectory(dt=dt, max_step=max_step, use_python=use_python)
         stop_time = time.perf_counter()
         eval_time += stop_time - start_time
 
-    # evaluate average
-    avg_evaltime = eval_time / iter_num
-
-    return avg_evaltime
+    return eval_time / iter_num
 
 
 def get_evaltime_data(iternum_list):
     """
-    Evaluates the evaluation time for different iteration values, and store them into a dictionary.
+    Evaluate the average trajectory time for each iteration count in the list.
 
     Parameters
-    -----------
-
-    - iternum_list : list
-        list of maximum iterations to perform
+    ----------
+    iternum_list : list
+        List of iteration counts to benchmark.
     """
-    # set geographic location parameters
-
-    # initial variables chosen since it has a well-defined trajectory with # steps with dt=1e-5, max_time=0.1
-    # total step size for integrator is 2119
     initial_variables = ("p+", 20.0, -30.0, 100.0, 0.0, 0.0, 0.0, 40.0)
 
-    # initialize performance benchmark time arrays
-
     avg_evaltime_dict = {
-        # "pydip": np.zeros(len(iternum_list)),
-        # "pyigrf": np.zeros(len(iternum_list)),
-        "cppdip_novec": {
-            "values": np.zeros(len(iternum_list)),
-            "label": "C++, Dipole (Scalar)",
-        },
-        "cppigrf_novec": {
-            "values": np.zeros(len(iternum_list)),
-            "label": "C++, IGRF (Scalar)",
-        },
         "cppdip_vec": {
             "values": np.zeros(len(iternum_list)),
-            "label": "C++, Dipole (Vector)",
+            "label": "C++, Dipole",
         },
         "cppigrf_vec": {
             "values": np.zeros(len(iternum_list)),
-            "label": "C++, IGRF (Vector)",
+            "label": "C++, IGRF",
         },
     }
 
-    # evaluate average evaluation times for each iteration
     for i, iter_num in enumerate(iternum_list):
-        # # python, dipole
-        # avg_evaltime_dict["pydip"][i] = get_evaltime(iter_num,
-        #                                              initial_variables,
-        #                                              bfield_type="dipole",
-        #                                              use_python=True)
-        # # python, igrf
-        # avg_evaltime_dict["pyigrf"]["values"][i] = get_evaltime(iter_num,
-        #                                                 initial_variables,
-        #                                                 bfield_type="igrf",
-        #                                                 use_python=True)
-
-        # C++, dipole, vector form
         avg_evaltime_dict["cppdip_vec"]["values"][i] = get_evaltime(
             iter_num, initial_variables, bfield_type="dipole"
         )
-
-        # C++, igrf, vector form
         avg_evaltime_dict["cppigrf_vec"]["values"][i] = get_evaltime(
             iter_num, initial_variables, bfield_type="igrf"
         )
-
         print(f"Finished benchmarking with {int(np.floor(iter_num))} iterations.")
 
-    # return the data
     return avg_evaltime_dict
 
 
 def plot_benchmarks(benchmark_data, iternum_list):
-    """
-    Plot benchmark results for each maximal iteration
-    """
-
+    """Plot benchmark results for each iteration count."""
     color_arr = ["b", "m", "g", "c", "r", "y"]
 
     fig, ax = plt.subplots(figsize=(12, 9), constrained_layout=True)
@@ -176,31 +127,22 @@ def plot_benchmarks(benchmark_data, iternum_list):
     ax.set_title("Performance Benchmarks for Trajectory Evaluations", fontsize=16)
     ax.legend()
 
-    plt.savefig(os.path.join(PLOT_DIR, "benchmark_plot.png"))
+    PLOT_DIR.mkdir(parents=True, exist_ok=True)
+    plt.savefig(PLOT_DIR / "benchmark_plot.png")
 
 
 if __name__ == "__main__":
-    # set geographic location parameters
-
-    # initial variables chosen since it has a well-defined trajectory with # steps with dt=1e-5, max_time=0.1
-    # total step size for integrator is 2119
     initial_variables = ("p+", 20.0, 25.0, 100.0, 0.0, 0.0, 0.0, 10.0)
-    plabel, zenith, azimuth, part_alt, lat, lng, dec_alt, rig = initial_variables
 
-    # integration parameters
-    iternum_list = np.logspace(0, np.log10(3000), 10)  # number of iterations
-    # iternum_list = [10, 100]
+    iternum_list = np.logspace(0, np.log10(3000), 10)
 
-    reset = True  # parameter to reset benchmark data
+    reset = True
 
-    # check if the benchmark data file is already contained in data/, otherwise run the above
-    fpath = os.path.join(DATA_DIR, "benchmark_data.pkl")
-    if os.path.exists(fpath) and not reset:
+    fpath = DATA_DIR / "benchmark_data.pkl"
+    if fpath.exists() and not reset:
         benchmark_data = read_pkl(fpath)
-
     else:
         benchmark_data = get_evaltime_data(iternum_list)
         write_pkl(fpath, benchmark_data)
 
-    # plot results
     plot_benchmarks(benchmark_data, iternum_list)

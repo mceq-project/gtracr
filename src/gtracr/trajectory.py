@@ -1,23 +1,23 @@
 """Single cosmic ray trajectory evaluation through Earth's geomagnetic field."""
 
-import os
 from datetime import date
+from pathlib import Path
 
 import numpy as np
 
-from gtracr.lib._libgtracr import TrajectoryTracer
-from gtracr.lib.constants import (
+from gtracr._fallback import pTrajectoryTracer
+from gtracr._libgtracr import TrajectoryTracer
+from gtracr.constants import (
     EARTH_RADIUS,
     ELEMENTARY_CHARGE,
     KG_M_S_PER_GEVC,
     KG_PER_GEVC2,
     RAD_PER_DEG,
+    SOLVER_CHARS,
 )
-from gtracr.lib.trajectory_tracer import pTrajectoryTracer
 from gtracr.utils import location_dict, particle_dict, ymd_to_dec
 
-CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
-DATA_DIR = os.path.join(CURRENT_DIR, "data")
+_DATA_DIR = Path(__file__).parent / "data"
 
 
 class Trajectory:
@@ -94,9 +94,6 @@ class Trajectory:
     True
     """
 
-    # Solver name → C++ char mapping
-    _SOLVER_CHARS = {"rk4": "r", "boris": "b", "rk45": "a"}
-
     def __init__(
         self,
         zenith_angle,
@@ -152,7 +149,6 @@ class Trajectory:
             self.particle.set_from_rigidity(rigidity)
             self.rigidity = rigidity
             self.energy = self.particle.get_energy_rigidity()
-        # elif rigidity is None and energy is None:
         else:
             raise Exception("Provide either energy or rigidity as input, not both!")
         # Magnetic field model configuration
@@ -160,15 +156,11 @@ class Trajectory:
         # take only first character for compatibility with char in c++
         self.bfield_type = bfield_type[0]
 
-        # find the path to the data and set current date for igrf bfield
-        datapath = os.path.abspath(DATA_DIR)
-        # print(datapath)
+        datapath = str(_DATA_DIR.resolve())
         dec_date = float(ymd_to_dec(date))
         self.igrf_params = (datapath, dec_date)
-        # Solver and other configuration
-        # Solver configuration
         solver_key = solver.lower() if isinstance(solver, str) else solver
-        self.solver_char = self._SOLVER_CHARS.get(solver_key, "r")
+        self.solver_char = SOLVER_CHARS.get(solver_key, "r")
         self.atol = atol
         self.rtol = rtol
 
@@ -269,37 +261,19 @@ class Trajectory:
                 particle_t0, particle_vec0
             )
 
-            # convert all data to numpy arrays for computations etc
-            # this should be done within C++ in future versions
             for key, arr in list(trajectory_datadict.items()):
                 trajectory_datadict[key] = np.array(arr)
-
-            # add the Cartesian components to the dictionary
-            # for plotting purposes
             self.convert_to_cartesian(trajectory_datadict)
 
-            # lastly get the boolean of if the particle has escaped or not
-            # in binary format
-            # this helps with the geomagnetic cutoff procedure
-            # alternatively this can be inside the geomagnetic things
             self.particle_escaped = traj_tracer.particle_escaped
-
-            # set the final time and six-vector from the evaluator
             self.final_time = traj_tracer.final_time
             self.final_sixvector = np.array(traj_tracer.final_sixvector)
 
             return trajectory_datadict
 
         else:
-            # simply evaluate without returning the dictionary
             traj_tracer.evaluate(particle_t0, particle_vec0)
-            # lastly get the boolean of if the particle has escaped or not
-            # in binary format
-            # this helps with the geomagnetic cutoff procedure
-            # alternatively this can be inside the geomagnetic things
             self.particle_escaped = traj_tracer.particle_escaped
-
-            # set the final time and six-vector from the evaluator
             self.final_time = traj_tracer.final_time
             self.final_sixvector = np.array(traj_tracer.final_sixvector)
 
@@ -315,8 +289,6 @@ class Trajectory:
         trajectory_data["y"] = r_arr * np.sin(theta_arr) * np.sin(phi_arr)
         trajectory_data["z"] = r_arr * np.cos(theta_arr)
 
-    # get the initial trajectory points based on the latitude, longitude, altitude, zenith, and azimuth
-    # returns tuple of 2 trajectory points (the initial one and the first one relating to that of the zenith and azimuth one)
     def detector_to_geocentric(self):
         """
         Convert the coordinates defined in the detector frame (the coordinate system
@@ -383,22 +355,12 @@ class Trajectory:
     def transform(self, detector_coord, particle_coord):
         return detector_coord + np.dot(self.transform_matrix(), particle_coord)
 
-    # get the detector coordinates (in Cartesian) from zenith and azimuthal angles
     def get_particle_coord(self, altitude, magnitude):
+        """Convert zenith/azimuth angles to a detector-frame Cartesian vector."""
         xi = self.zangle * RAD_PER_DEG
         alpha = self.azangle * RAD_PER_DEG
-        # alpha = (self.azangle + 90.) * DEG_TO_RAD
-
-        # xt and yt are flipped from usual conversions from spherical coordinates
-        # to allow azimuth = 0 to point to the geographic north pole
-        # (if we use normal spherical coordinate conversion, azimuth = 0
-        #  means pointing west in detector coordinates)
-
-        # the below coordinate convention for detector coordinates are used
-        # to follow the convention used in Honda's 2002 paper, in which
-        # an azimuth angle of 0 correlates to direction of the
-        # geographic South Pole, and + azimuth will indicate particles
-        # coming from the west
+        # Convention: azimuth=0 points south (Honda 2002); xt/yt are swapped
+        # from standard spherical so that north pole is at azimuth=180°.
         xt = magnitude * np.sin(xi) * np.sin(alpha)
         yt = -magnitude * np.sin(xi) * np.cos(alpha)
         zt = magnitude * np.cos(xi) + altitude

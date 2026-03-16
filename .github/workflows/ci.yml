@@ -29,7 +29,7 @@ jobs:
 
       - name: clang-format check
         run: |
-          find src/gtracr/lib/src src/gtracr/lib/include src/gtracr/lib/gpu \
+          find src/cpp/src src/cpp/include src/cpp/gpu \
             -name '*.cpp' -o -name '*.hpp' | \
             xargs clang-format --dry-run --Werror
 

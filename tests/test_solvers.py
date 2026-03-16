@@ -5,7 +5,7 @@ IGRF table-lookup bfield_type ("table" / 't').
 
 import numpy as np
 
-from gtracr.lib.constants import EARTH_RADIUS
+from gtracr.constants import EARTH_RADIUS
 from gtracr.trajectory import Trajectory
 
 # ---------------------------------------------------------------------------
@@ -221,20 +221,14 @@ def test_igrf_table_consistent_with_igrf():
 
 def test_igrf_table_field_accuracy():
     """Table B-field should match direct IGRF values to within 1% at a sample point"""
-    import os
+    from pathlib import Path
 
-    from gtracr.lib._libgtracr import IGRF
-    from gtracr.lib._libgtracr import TrajectoryTracer as CppTT
+    from gtracr._libgtracr import IGRF
+    from gtracr._libgtracr import TrajectoryTracer as CppTT
 
-    data_dir = os.path.join(
-        os.path.dirname(os.path.realpath(__file__)),
-        "..",
-        "src",
-        "gtracr",
-        "data",
-    )
+    data_dir = str(Path(__file__).parent.parent / "src" / "gtracr" / "data")
 
-    igrf = IGRF(os.path.join(data_dir, "igrf13.json"), 2020.0)
+    igrf = IGRF(str(Path(data_dir) / "igrf13.json"), 2020.0)
 
     r = EARTH_RADIUS + 100e3  # 100 km altitude
     theta = np.pi / 2.0  # equator
@@ -243,7 +237,7 @@ def test_igrf_table_field_accuracy():
     direct = np.array(igrf.values(r, theta, phi))
 
     # Build a TrajectoryTracer with table mode to exercise table generation
-    from gtracr.lib.constants import ELEMENTARY_CHARGE, KG_PER_GEVC2
+    from gtracr.constants import ELEMENTARY_CHARGE, KG_PER_GEVC2
 
     CppTT(
         ELEMENTARY_CHARGE,

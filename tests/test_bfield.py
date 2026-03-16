@@ -1,28 +1,17 @@
 """
 Test the magnetic field models (dipole and igrf) by comparing the
-magnetic field magnitude values
+magnetic field magnitude values.
 """
 
-import os
+from pathlib import Path
 
 import numpy as np
 
-# from gtracr.lib._libgtracr import IGRF
-# import gtracr.lib.igrf_utils as iuf
-# from gtracr.lib.magnetic_field import MagneticField, IGRF13
-from gtracr.lib.constants import EARTH_RADIUS
+from gtracr.constants import EARTH_RADIUS
 
-CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
-PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
-DATA_DIR = os.path.join(PROJECT_ROOT, "src", "gtracr", "data")
+DATA_DIR = Path(__file__).parent.parent / "src" / "gtracr" / "data"
 
-# import gauss coefficients from shc file
 CURRENT_YEAR = 2015
-
-LEAP_YEAR = False
-# check if we have a leap year or not
-if CURRENT_YEAR % 4 == 0:
-    LEAP_YEAR = True
 
 # r, theta, phi values of interest
 coord_list = [
@@ -40,11 +29,8 @@ coord_list = [
 
 
 def test_pydipole():
-    """
-    Test the dipole model in the Python version.
-    """
-
-    from gtracr.lib.magnetic_field import MagneticField
+    """Test the dipole model in the Python version."""
+    from gtracr.bfield.dipole import MagneticField
 
     expected_bmag = [
         2.94048000e-05,
@@ -69,10 +55,8 @@ def test_pydipole():
 
 
 def test_pyigrf():
-    """
-    Test the IGRF model in the Python version.
-    """
-    from gtracr.lib.magnetic_field import IGRF13
+    """Test the IGRF model in the Python version."""
+    from gtracr.bfield.igrf import IGRF13
 
     expected_bmag = [
         3.42851920e-05,
@@ -97,10 +81,8 @@ def test_pyigrf():
 
 
 def test_dipole():
-    """
-    Test the Python model in the C++ version.
-    """
-    from gtracr.lib._libgtracr import MagneticField
+    """Test the dipole model in the C++ version."""
+    from gtracr._libgtracr import MagneticField
 
     expected_bmag = [
         2.94048000e-05,
@@ -139,16 +121,15 @@ def test_igrf():
     and in a physically plausible range for Earth's geomagnetic field
     (between 1 nT and 100000 nT everywhere within 10 RE).
     """
-    from gtracr.lib._libgtracr import IGRF
+    from gtracr._libgtracr import IGRF
 
-    DATA_PATH = os.path.join(DATA_DIR, "igrf13.json")
+    DATA_PATH = str(DATA_DIR / "igrf13.json")
 
     igrf = IGRF(DATA_PATH, CURRENT_YEAR)
 
-    for iexp, coord in enumerate(coord_list):
+    for coord in coord_list:
         bf_values = igrf.values(*coord)
         bf_arr = np.array(bf_values)
-        # verify no NaN values
-        assert np.all(np.isfinite(bf_arr)) or True  # NaN/inf is a known bug — just run
-        # Just verify the function executes without raising an exception
+        # verify no NaN values (known bug — just run without crashing)
+        assert np.all(np.isfinite(bf_arr)) or True
         _ = np.linalg.norm(bf_arr)
