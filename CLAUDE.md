@@ -299,3 +299,15 @@ Key findings:
 Kamioka, IceCube, SNOLAB, UofA, CTA-North, CTA-South, ORCA, ANTARES, Baikal-GVD, TA.
 
 See `gtracr/utils.py` for coordinates.
+
+---
+
+## Documentation Maintenance
+
+**When changing any public Python API (adding/removing/renaming parameters, changing defaults,
+adding new classes or methods), you MUST update:**
+
+1. The numpy-style docstring on the changed function/class
+2. The relevant MkDocs page in `docs/` (trajectory.md, geomagnetic_cutoffs.md, solvers.md)
+3. The quickstart examples in `docs/index.md` if the basic usage pattern changed
+4. README.md if the change affects the high-level feature description

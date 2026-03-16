@@ -99,6 +99,15 @@ class IGRF13(MagneticField):
     """
 
     def __init__(self, curr_year, nmax=None):
+        """
+        Parameters
+        ----------
+        curr_year : float
+            Decimal year for coefficient interpolation (e.g. 2024.5).
+        nmax : int, optional
+            Truncation degree for the spherical harmonic expansion.
+            Defaults to the maximum degree in the IGRF-13 data file.
+        """
         # override MagneticField __init__ function
         # not necessary, but for decorative sake
         # super().__init__(self)
@@ -131,6 +140,22 @@ class IGRF13(MagneticField):
         self.igrf_coeffs = interp_coeffs(self.curr_year).T
 
     def values(self, r, theta, phi):
+        """Evaluate the IGRF-13 magnetic field at a point.
+
+        Parameters
+        ----------
+        r : float
+            Radial distance from Earth's center in meters.
+        theta : float
+            Colatitude (polar angle) in radians.
+        phi : float
+            Longitude (azimuthal angle) in radians.
+
+        Returns
+        -------
+        numpy.ndarray, shape (3,)
+            ``(Br, Btheta, Bphi)`` in Tesla.
+        """
         # transform theta, phi to degrees and r into kilometers
         r *= 1e-3
         theta *= DEG_PER_RAD

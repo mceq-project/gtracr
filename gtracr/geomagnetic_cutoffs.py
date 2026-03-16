@@ -1,3 +1,5 @@
+"""Geomagnetic rigidity cutoff evaluation via Monte Carlo sampling."""
+
 import os
 import threading
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
@@ -323,6 +325,21 @@ class GMRC:
         or "rk45" (adaptive Dormand-Prince).
     - atol, rtol : float, optional
         Absolute and relative tolerances for the RK45 adaptive solver (defaults 1e-3, 1e-6).
+
+    Examples
+    --------
+    Python-orchestrated evaluation:
+
+    >>> gmrc = GMRC(location="Kamioka", iter_num=1000, bfield_type="igrf")
+    >>> gmrc.evaluate(dt=1e-5, max_time=1.)
+    >>> az, zen, cutoffs = gmrc.interpolate_results()
+
+    C++ batch mode (fastest):
+
+    >>> gmrc = GMRC(location="Kamioka", iter_num=10000, bfield_type="table",
+    ...             solver="rk45")
+    >>> gmrc.evaluate_batch(dt=1e-5, max_time=1.)
+    >>> az, zen, cutoffs = gmrc.bin_results()
     """
 
     def __init__(
@@ -353,9 +370,7 @@ class GMRC:
         self.solver_char = _SOLVER_CHARS.get(solver.lower(), "r")
         self.atol = atol
         self.rtol = rtol
-        """
-        Rigidity configurations
-        """
+        # Rigidity configurations
         self.rmin = min_rigidity
         self.rmax = max_rigidity
         self.rdelta = delta_rigidity

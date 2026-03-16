@@ -5,16 +5,18 @@ Library class that allows us to add locations of varying latitude and longitude
 
 class Location:
     """
-    A class of locations around the globe. Used to allow easy access to geodesic coordinates of locations of interest.
-    Members:
-    - name : str
-        the name of the location
-    - latitude : float
-        the geographical latitude (0 = equator) in decimal degrees
-    - longitude : float
-        the geographical longitude (0 = prime meridian) in decimal degrees
-    - altitude : float
-        the altitude above sea level of the location in km
+    Geographic detector location.
+
+    Parameters
+    ----------
+    name : str
+        Human-readable location name (e.g. ``"Kamioka"``).
+    latitude : float
+        Geographic latitude in decimal degrees (positive = north).
+    longitude : float
+        Geographic longitude in decimal degrees (positive = east).
+    altitude : float, optional
+        Altitude above sea level in km (default 0).
     """
 
     def __init__(self, name, latitude, longitude, altitude=0.0):

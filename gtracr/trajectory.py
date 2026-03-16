@@ -1,3 +1,5 @@
+"""Single cosmic ray trajectory evaluation through Earth's geomagnetic field."""
+
 import os
 from datetime import date
 
@@ -20,39 +22,76 @@ DATA_DIR = os.path.join(CURRENT_DIR, "data")
 
 class Trajectory:
     """
-    Class that controls the trajectory of a particle at some given energy / rigidity
+    Evaluate a single cosmic ray trajectory through Earth's geomagnetic field.
 
-    Required Parameters
-    -------------------
-    - zenith_angle : float
-        the angle of the cosmic ray trajectory from the local zenith, with 0 being at the local zenith
-    - azimuth_angle : float
-        the angle of the cosmic ray trajectory with 0 being in the direction of the geographic North in the local tangent plane
-    - energy : float
-        the cosmic ray energy. Cannot be used concurrently with rigidity (default = None).
-    - rigidity : float
-        the cosmic ray rigidity. Cannot be used concurrently with energy (default = None).
+    Constructs initial conditions from a particle type, arrival direction,
+    energy or rigidity, and geographic location, then integrates the
+    relativistic Lorentz force equation in geocentric spherical coordinates.
 
-    Optional Parameters
-    --------------------
-    - particle_altitude : float
-        the altitude in which the cosmic ray hits Earth's atmosphere and creates showers (default = 100km)
-    - latitude : float
-         the geographic latitude of the detector, with 0 defined at the equator in degrees
-    - longitude : float
-        the geographic longitude of the detector, with 0 defined at the Prime Meridian in degrees
-    - detector_altitude : float
-        the height of the detector from sea level in km (default = 0km)
-    - location_name : str
-        the location name as stored in location_dict (default = None). Available as an alternative option to initialize the location of the trajectory.
-    - bfield_type : str
-        the type of bfield to evaluate the trajectory with (either 'dipole' or 'igrf', default = igrf)
-    - date : str
-        the date in which the field is evaluated in (defaults to the current date). Date must be formatted in "yyyy-mm-dd" format.
-    - plabel : str
-         the label of the particle defined in particle_dict (default = "p+"). Available options are "p+", "p-", "e+", "e-".
-    - escape_altitude : float
-        the altitude in which the particle has "escaped" Earth in meters (default = 10 * RE)
+    Parameters
+    ----------
+    zenith_angle : float
+        Angle from local zenith in degrees. 0 = directly overhead,
+        90 = horizontal, >90 = upward-moving (from other side of Earth).
+    azimuth_angle : float
+        Angle from geographic north in the local tangent plane, in degrees.
+        0 = south, 90 = west, 180 = north, 270 = east.
+    energy : float, optional
+        Cosmic ray kinetic energy in GeV. Mutually exclusive with *rigidity*.
+    rigidity : float, optional
+        Cosmic ray rigidity (momentum / charge) in GV. Mutually exclusive
+        with *energy*.
+    particle_altitude : float, optional
+        Altitude at which the cosmic ray enters the atmosphere, in km
+        (default 100).
+    latitude : float, optional
+        Geographic latitude of the detector in decimal degrees (default 0).
+    longitude : float, optional
+        Geographic longitude of the detector in decimal degrees (default 0).
+    detector_altitude : float, optional
+        Detector altitude above sea level in km (default 0).
+    location_name : str, optional
+        Name of a predefined location (e.g. ``"Kamioka"``, ``"IceCube"``).
+        Overrides *latitude*, *longitude*, and *detector_altitude*.
+    bfield_type : str, optional
+        Magnetic field model: ``"igrf"`` (default), ``"dipole"``, or
+        ``"table"`` (tabulated IGRF for speed).
+    date : str, optional
+        Date for IGRF evaluation in ``"yyyy-mm-dd"`` format
+        (default: today).
+    plabel : str, optional
+        Particle label: ``"p+"`` (default), ``"p-"``, ``"e+"``, ``"e-"``.
+    escape_altitude : float, optional
+        Radial distance (m) beyond which the particle is considered escaped
+        (default ``10 * EARTH_RADIUS``).
+    solver : str, optional
+        Integration method: ``"rk4"`` (default, frozen-field Runge-Kutta 4),
+        ``"boris"`` (Boris pusher, ~30 %% faster), or ``"rk45"`` (adaptive
+        Dormand-Prince).
+    atol : float, optional
+        Absolute tolerance for the RK45 solver (default 1e-3).
+    rtol : float, optional
+        Relative tolerance for the RK45 solver (default 1e-6).
+
+    Attributes
+    ----------
+    particle_escaped : bool
+        ``True`` if the most recent trajectory escaped Earth's field.
+    final_time : float
+        Integration time at termination (seconds).
+    final_sixvector : numpy.ndarray
+        Final ``(r, theta, phi, pr, ptheta, pphi)`` state vector.
+
+    Examples
+    --------
+    >>> from gtracr.trajectory import Trajectory
+    >>> traj = Trajectory(
+    ...     zenith_angle=45., azimuth_angle=0., rigidity=20.,
+    ...     location_name="Kamioka", bfield_type="igrf",
+    ... )
+    >>> data = traj.get_trajectory(get_data=True)
+    >>> traj.particle_escaped
+    True
     """
 
     # Solver name → C++ char mapping
@@ -77,24 +116,17 @@ class Trajectory:
         atol=1e-3,
         rtol=1e-6,
     ):
-        """
-        Cosmic ray direction configurations
-        """
         self.zangle = zenith_angle
         self.azangle = azimuth_angle
         self.palt = particle_altitude * (1e3)  # convert to meters
         self.esc_alt = escape_altitude
-        """
-        Particle type configuration
-        """
+        # Particle type configuration
         # define particle from particle_dict
 
         self.particle = particle_dict[plabel]
         self.charge = self.particle.charge
         self.mass = self.particle.mass
-        """
-        Geodesic coordinate configuration
-        """
+        # Geodesic coordinate configuration
         # only import location dictionary and use those values if location_name is not None
         if location_name is not None:
             # location_dict = set_locationdict()
@@ -109,9 +141,7 @@ class Trajectory:
         self.dalt = detector_altitude * (1e3)  # convert to meters
 
         self.start_alt = self.dalt + self.palt
-        """
-        Cosmic ray energy / rigidity / momentum configuration
-        """
+        # Cosmic ray energy / rigidity / momentum configuration
         # define rigidity and energy only if they are provided, evaluate for the other member
         # also set momentum in each case
         if rigidity is None and energy is not None:
@@ -125,9 +155,7 @@ class Trajectory:
         # elif rigidity is None and energy is None:
         else:
             raise Exception("Provide either energy or rigidity as input, not both!")
-        """
-        Magnetic Field Model configuration
-        """
+        # Magnetic field model configuration
         # type of bfield to use
         # take only first character for compatibility with char in c++
         self.bfield_type = bfield_type[0]
@@ -137,9 +165,7 @@ class Trajectory:
         # print(datapath)
         dec_date = float(ymd_to_dec(date))
         self.igrf_params = (datapath, dec_date)
-        """
-        Other set-ups
-        """
+        # Solver and other configuration
         # Solver configuration
         solver_key = solver.lower() if isinstance(solver, str) else solver
         self.solver_char = self._SOLVER_CHARS.get(solver_key, "r")

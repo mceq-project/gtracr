@@ -1,3 +1,16 @@
+"""
+gtracr — GPU-accelerated Tracking simulation for Cosmic Ray trajectories.
+
+Simulates cosmic ray trajectories through Earth's geomagnetic field using
+the IGRF-13 model and computes geomagnetic rigidity cutoffs (GMRC) via
+Monte Carlo sampling.
+
+Main classes
+------------
+Trajectory : Single cosmic ray trajectory evaluation.
+GMRC : Geomagnetic rigidity cutoff map evaluation.
+"""
+
 import os
 import sys
 

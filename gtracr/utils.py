@@ -129,7 +129,17 @@ def ymd_to_dec(ymd_date):
 
 def import_dict(fname):
     """
-    Import the dictionary with filepath fname.
+    Load a pickled dictionary from disk.
+
+    Parameters
+    ----------
+    fname : str
+        Absolute or relative path to the ``.pkl`` file.
+
+    Returns
+    -------
+    dict
+        The deserialized dictionary.
     """
     with open(fname, "rb") as f:
         the_dict = pickle.load(f)
@@ -147,7 +157,14 @@ def import_dict(fname):
 
 def set_locationdict():
     """
-    Sets the location dictionary from some set of locations.
+    Build the dictionary of predefined detector locations.
+
+    Returns
+    -------
+    dict of str -> Location
+        Mapping from location name to ``Location`` instance.
+        Predefined sites: Kamioka, IceCube, SNOLAB, UofA,
+        CTA-North, CTA-South, ORCA, ANTARES, Baikal-GVD, TA.
     """
     location_dict = {}
 
@@ -176,7 +193,13 @@ def set_locationdict():
 
 def set_particledict():
     """
-    Sets the particle dictionary from some set of particles.
+    Build the dictionary of supported cosmic ray particles.
+
+    Returns
+    -------
+    dict of str -> Particle
+        Mapping from particle label to ``Particle`` instance.
+        Supported labels: ``"p+"``, ``"p-"``, ``"e+"``, ``"e-"``.
     """
     particle_dict = {}
 

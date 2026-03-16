@@ -37,18 +37,46 @@ class Particle:
         self.rigidity = 0.0
 
     def set_from_energy(self, energy):
+        """Set momentum and rigidity from total energy.
+
+        Parameters
+        ----------
+        energy : float
+            Total relativistic energy in GeV.
+        """
         self.momentum = np.sqrt(energy**2.0 - self.mass**2.0)
         self.rigidity = self.momentum / np.abs(self.charge)
 
     def set_from_rigidity(self, rigidity):
+        """Set momentum and rigidity from rigidity.
+
+        Parameters
+        ----------
+        rigidity : float
+            Magnetic rigidity in GV (momentum / charge).
+        """
         self.momentum = rigidity * np.abs(self.charge)
         self.rigidity = rigidity
 
     def set_from_momentum(self, momentum):
+        """Set momentum and compute rigidity from momentum.
+
+        Parameters
+        ----------
+        momentum : float
+            Relativistic momentum in GeV/c.
+        """
         self.momentum = momentum
         self.rigidity = self.momentum / np.abs(self.charge)
 
     def get_energy_rigidity(self):
+        """Compute total energy from the current rigidity.
+
+        Returns
+        -------
+        float
+            Total relativistic energy in GeV.
+        """
         return (
             np.sqrt((self.rigidity * np.abs(self.charge)) ** 2.0 + self.mass**2.0)
             + self.mass
