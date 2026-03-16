@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Mon Mar 30 21:55:38 2020
 
 @author: Ciaran Beggan (British Geological Survey)
- 
+
 Based on code from : chaosmagpy, Clemens Kloss (DTU Space)
                    : spherical harmonic code from David Kerridge (BGS)
-                   
+
 Functions for computing main field, the non-linear coefficients of the field,
     loading in coefficients files, format checking and coordinate rotation from
     geodetic to geocentric frame
@@ -15,10 +14,11 @@ Functions for computing main field, the non-linear coefficients of the field,
 """
 
 import os
+import warnings
+from math import pi
+
 import numpy as np
 from numpy import degrees, radians
-from math import pi
-import warnings
 
 r2d = np.rad2deg
 d2r = np.deg2rad
@@ -37,7 +37,7 @@ def check_int(s):
         return int(s)
     except ValueError:
         # raise ValueError(f'Could not convert {s} to integer.')
-        raise ValueError('Could not convert {:s} to integer.'.format(s))
+        raise ValueError(f"Could not convert {s:s} to integer.")
 
 
 def check_float(s):
@@ -46,7 +46,7 @@ def check_float(s):
         return float(s)
     except ValueError:
         # raise ValueError(f'Could not convert {s} to float.')
-        raise ValueError('Could not convert {:s} to float.'.format(s))
+        raise ValueError(f"Could not convert {s:s} to float.")
 
 
 def load_shcfile(filepath, leap_year=None):
@@ -80,15 +80,13 @@ def load_shcfile(filepath, leap_year=None):
     """
     leap_year = True if leap_year is None else leap_year
 
-    with open(filepath, 'r') as f:
-
+    with open(filepath) as f:
         data = np.array([])
         for line in f.readlines():
-
-            if line[0] == '#':
+            if line[0] == "#":
                 continue
 
-            read_line = np.fromstring(line, sep=' ')
+            read_line = np.fromstring(line, sep=" ")
             if read_line.size == 7:
                 name = os.path.split(filepath)[1]  # file name string
                 values = [name] + read_line.astype(int).tolist()
@@ -97,60 +95,52 @@ def load_shcfile(filepath, leap_year=None):
                 data = np.append(data, read_line)
 
         # unpack parameter line
-        keys = [
-            'SHC', 'nmin', 'nmax', 'N', 'order', 'step', 'start_year',
-            'end_year'
-        ]
+        keys = ["SHC", "nmin", "nmax", "N", "order", "step", "start_year", "end_year"]
         parameters = dict(zip(keys, values))
 
-        time = data[:parameters['N']]
-        coeffs = data[parameters['N']:].reshape((-1, parameters['N'] + 2))
+        time = data[: parameters["N"]]
+        coeffs = data[parameters["N"] :].reshape((-1, parameters["N"] + 2))
         coeffs = np.squeeze(coeffs[:, 2:])  # discard columns with n and m
 
     return igrf(time, coeffs, parameters)
 
 
 def check_lat_lon_bounds(latd, latm, lond, lonm):
-    """ Check the bounds of the given lat, long are within -90 to +90 and -180 
-    to +180 degrees 
-    
+    """Check the bounds of the given lat, long are within -90 to +90 and -180
+    to +180 degrees
+
     Paramters
     ---------
     latd, latm, lond, lonm : int or float
-    
+
     Returns
     -------
     latd, latm, lond, lonm : bounded to -90:90 and -180:180 and converted to
     decimal degrees
-    
+
     Otherwise, an exception is raised
-    
+
     """
 
     if latd < -90 or latd > 90 or latm < -60 or latm > 60:
         # raise ValueError(f'Latitude {latd} or {latm} out of bounds.')
-        raise ValueError('Latitude {:.3f} or {:.3f} out of bounds.'.format(
-            latd, latm))
+        raise ValueError(f"Latitude {latd:.3f} or {latm:.3f} out of bounds.")
     if lond < -360 or lond > 360 or lonm < -60 or lonm > 60:
         # raise ValueError(f'Longitude {lond} or {lonm} out of bounds.')
-        raise ValueError('Longitude {:.3f} or {:.3f} out of bounds.'.format(
-            lond, lonm))
+        raise ValueError(f"Longitude {lond:.3f} or {lonm:.3f} out of bounds.")
     if latm < 0 and lond != 0:
         # raise ValueError(f'Lat mins {latm} and {lond} out of bounds.')
-        raise ValueError('Lat mins {:.3f} and {:.3f} out of bounds.'.format(
-            latm, lond))
+        raise ValueError(f"Lat mins {latm:.3f} and {lond:.3f} out of bounds.")
     if lonm < 0 and lond != 0:
         # raise ValueError(f'Longitude mins {lonm} and {lond} out of bounds.')
-        raise ValueError(
-            'Longitude mins {:.3f} and {:.3f} out of bounds.'.format(
-                lonm, lond))
+        raise ValueError(f"Longitude mins {lonm:.3f} and {lond:.3f} out of bounds.")
 
     # Convert to decimal degrees
-    if (latd < 0):
+    if latd < 0:
         latm = -latm
     lat = latd + latm / 60.0
 
-    if (lond < 0):
+    if lond < 0:
         lonm = -lonm
     lon = lond + lonm / 60.0
 
@@ -175,18 +165,18 @@ def gg_to_geo(h, gdcolat):
         Geocentric radius in kilometers.
     theta : ndarray, shape (...)
         Geocentric colatitude in degrees.
-    
-    sd : ndarray shape (...) 
-        rotate B_X to gd_lat 
-    cd :  ndarray shape (...) 
-        rotate B_Z to gd_lat 
+
+    sd : ndarray shape (...)
+        rotate B_X to gd_lat
+    cd :  ndarray shape (...)
+        rotate B_Z to gd_lat
 
     References
     ----------
     Equations (51)-(53) from "The main field" (chapter 4) by Langel, R. A. in:
     "Geomagnetism", Volume 1, Jacobs, J. A., Academic Press, 1987.
-    
-    Malin, S.R.C. and Barraclough, D.R., 1981. An algorithm for synthesizing 
+
+    Malin, S.R.C. and Barraclough, D.R., 1981. An algorithm for synthesizing
     the geomagnetic field. Computers & Geosciences, 7(4), pp.401-405.
 
     """
@@ -270,35 +260,36 @@ def geo_to_gg(radius, theta):
 
     F = 54 * b2 * z2
 
-    G = r2 + (1. - e2) * z2 - e2 * (a2 - b2)
+    G = r2 + (1.0 - e2) * z2 - e2 * (a2 - b2)
 
     c = e4 * F * r2 / G**3
 
-    s = (1. + c + np.sqrt(c**2 + 2 * c))**(1. / 3)
+    s = (1.0 + c + np.sqrt(c**2 + 2 * c)) ** (1.0 / 3)
 
-    P = F / (3 * (s + 1. / s + 1.)**2 * G**2)
+    P = F / (3 * (s + 1.0 / s + 1.0) ** 2 * G**2)
 
-    Q = np.sqrt(1. + 2 * e4 * P)
+    Q = np.sqrt(1.0 + 2 * e4 * P)
 
-    r0 = -P * e2 * r / (1. + Q) + np.sqrt(0.5 * a2 * (1. + 1. / Q) - P *
-                                          (1. - e2) * z2 /
-                                          (Q * (1. + Q)) - 0.5 * P * r2)
+    r0 = -P * e2 * r / (1.0 + Q) + np.sqrt(
+        0.5 * a2 * (1.0 + 1.0 / Q)
+        - P * (1.0 - e2) * z2 / (Q * (1.0 + Q))
+        - 0.5 * P * r2
+    )
 
-    U = np.sqrt((r - e2 * r0)**2 + z2)
+    U = np.sqrt((r - e2 * r0) ** 2 + z2)
 
-    V = np.sqrt((r - e2 * r0)**2 + (1. - e2) * z2)
+    V = np.sqrt((r - e2 * r0) ** 2 + (1.0 - e2) * z2)
 
     z0 = b2 * z / (a * V)
 
-    height = U * (1. - b2 / (a * V))
+    height = U * (1.0 - b2 / (a * V))
 
-    beta = 90. - degrees(np.arctan2(z + ep2 * z0, r))
+    beta = 90.0 - degrees(np.arctan2(z + ep2 * z0, r))
 
     return height, beta
 
 
-def synth_values(coeffs, radius, theta, phi, \
-                 nmax=None, nmin=None, grid=None):
+def synth_values(coeffs, radius, theta, phi, nmax=None, nmin=None, grid=None):
     """
     Based on chaosmagpy from Clemens Kloss (DTU Space, Copenhagen)
     Computes radial, colatitude and azimuthal field components from the
@@ -410,40 +401,38 @@ def synth_values(coeffs, radius, theta, phi, \
 
     # ensure ndarray inputs
     coeffs = np.array(coeffs, dtype=float)
-    radius = np.array(radius,
-                      dtype=float) / 6371.2  # Earth's average radius
+    radius = np.array(radius, dtype=float) / 6371.2  # Earth's average radius
     theta = np.array(theta, dtype=float)
     phi = np.array(phi, dtype=float)
 
     if np.amin(theta) <= 0.0 or np.amax(theta) >= 180.0:
         if np.amin(theta) == 0.0 or np.amax(theta) == 180.0:
-            warnings.warn('The geographic poles are included.')
+            warnings.warn("The geographic poles are included.")
         else:
-            raise ValueError('Colatitude outside bounds [0, 180].')
+            raise ValueError("Colatitude outside bounds [0, 180].")
 
     if nmin is None:
         nmin = 1
     else:
-        assert nmin > 0, 'Only positive nmin allowed.'
+        assert nmin > 0, "Only positive nmin allowed."
 
     # handle optional argument: nmax
     nmax_coeffs = int(np.sqrt(coeffs.shape[-1] + 1) - 1)  # degree
     if nmax is None:
         nmax = nmax_coeffs
     else:
-        assert nmax > 0, 'Only positive nmax allowed.'
+        assert nmax > 0, "Only positive nmax allowed."
 
     if nmax > nmax_coeffs:
-        warnings.warn('Supplied nmax = {0} and nmin = {1} is '
-                      'incompatible with number of model coefficients. '
-                      'Using nmax = {2} instead.'.format(
-                          nmax, nmin, nmax_coeffs))
+        warnings.warn(
+            f"Supplied nmax = {nmax} and nmin = {nmin} is "
+            "incompatible with number of model coefficients. "
+            f"Using nmax = {nmax_coeffs} instead."
+        )
         nmax = nmax_coeffs
 
     if nmax < nmin:
-        raise ValueError(
-            'Nothing to compute: nmax < nmin ({:d} < {:d}.)'.format(
-                nmax, nmin))
+        raise ValueError(f"Nothing to compute: nmax < nmin ({nmax:d} < {nmin:d}.)")
 
     # handle grid option
     grid = False if grid is None else grid
@@ -455,10 +444,9 @@ def synth_values(coeffs, radius, theta, phi, \
 
     # get shape of broadcasted result
     try:
-        b = np.broadcast(radius, theta, phi,
-                         np.broadcast_to(0, coeffs.shape[:-1]))
+        b = np.broadcast(radius, theta, phi, np.broadcast_to(0, coeffs.shape[:-1]))
     except ValueError:
-        print('Cannot broadcast grid shapes (excl. last dimension of coeffs):')
+        print("Cannot broadcast grid shapes (excl. last dimension of coeffs):")
         # print(f'radius: {radius.shape}')
         # print(f'theta:  {theta.shape}')
         # print(f'phi:    {phi.shape}')
@@ -468,7 +456,7 @@ def synth_values(coeffs, radius, theta, phi, \
     grid_shape = b.shape
 
     # initialize radial dependence given the source
-    r_n = radius**(-(nmin + 2))
+    r_n = radius ** (-(nmin + 2))
 
     # compute associated Legendre polynomials as (n, m, theta-points)-array
     Pnm = legendre_poly(nmax, theta)
@@ -496,23 +484,29 @@ def synth_values(coeffs, radius, theta, phi, \
 
         for m in range(1, n + 1):
             B_radius += (
-                (n + 1) * Pnm[n, m] * r_n *
-                (coeffs[..., num] * cmp[m] + coeffs[..., num + 1] * smp[m]))
+                (n + 1)
+                * Pnm[n, m]
+                * r_n
+                * (coeffs[..., num] * cmp[m] + coeffs[..., num + 1] * smp[m])
+            )
 
             B_theta += (
-                -Pnm[m, n + 1] * r_n *
-                (coeffs[..., num] * cmp[m] + coeffs[..., num + 1] * smp[m]))
+                -Pnm[m, n + 1]
+                * r_n
+                * (coeffs[..., num] * cmp[m] + coeffs[..., num + 1] * smp[m])
+            )
 
-            with np.errstate(divide='ignore', invalid='ignore'):
+            with np.errstate(divide="ignore", invalid="ignore"):
                 # handle poles using L'Hopital's rule
-                div_Pnm = np.where(theta == 0., Pnm[m, n + 1],
-                                   Pnm[n, m] / sinth)
-                div_Pnm = np.where(theta == degrees(pi), -Pnm[m, n + 1],
-                                   div_Pnm)
+                div_Pnm = np.where(theta == 0.0, Pnm[m, n + 1], Pnm[n, m] / sinth)
+                div_Pnm = np.where(theta == degrees(pi), -Pnm[m, n + 1], div_Pnm)
 
             B_phi += (
-                m * div_Pnm * r_n *
-                (coeffs[..., num] * smp[m] - coeffs[..., num + 1] * cmp[m]))
+                m
+                * div_Pnm
+                * r_n
+                * (coeffs[..., num] * smp[m] - coeffs[..., num + 1] * cmp[m])
+            )
 
             num += 2
 
@@ -565,21 +559,23 @@ def legendre_poly(nmax, theta):
             d = n * n - m * m
             e = n + n - 1
             Pnm[n, m] = (
-                (e * costh * Pnm[n - 1, m] - rootn[d - e] * Pnm[n - 2, m]) /
-                rootn[d])
+                e * costh * Pnm[n - 1, m] - rootn[d - e] * Pnm[n - 2, m]
+            ) / rootn[d]
 
     # dP(n,m) = Pnm(m,n+1) is the derivative of P(n,m) vrt. theta
     Pnm[0, 2] = -Pnm[1, 1]
     Pnm[1, 2] = Pnm[1, 0]
     for n in range(2, nmax + 1):
         Pnm[0, n + 1] = -np.sqrt((n * n + n) / 2) * Pnm[n, 1]
-        Pnm[1, n + 1] = ((np.sqrt(2 * (n * n + n)) * Pnm[n, 0] - np.sqrt(
-            (n * n + n - 2)) * Pnm[n, 2]) / 2)
+        Pnm[1, n + 1] = (
+            np.sqrt(2 * (n * n + n)) * Pnm[n, 0] - np.sqrt(n * n + n - 2) * Pnm[n, 2]
+        ) / 2
 
         for m in np.arange(2, n):
-            Pnm[m, n + 1] = (0.5 * (np.sqrt(
-                (n + m) * (n - m + 1)) * Pnm[n, m - 1] - np.sqrt(
-                    (n + m + 1) * (n - m)) * Pnm[n, m + 1]))
+            Pnm[m, n + 1] = 0.5 * (
+                np.sqrt((n + m) * (n - m + 1)) * Pnm[n, m - 1]
+                - np.sqrt((n + m + 1) * (n - m)) * Pnm[n, m + 1]
+            )
 
         Pnm[n, n + 1] = np.sqrt(2 * n) * Pnm[n, n - 1] / 2
 
@@ -588,15 +584,15 @@ def legendre_poly(nmax, theta):
 
 def xyz2dhif(x, y, z):
     """Calculate D, H, I and F from (X, Y, Z)
-      
+
     Based on code from D. Kerridge, 2019
-    
+
     Parameters
     ---------------
     X: north component (nT) : float
     Y: east component (nT) : float
     Z: vertical component (nT) : float
-    
+
     Returns
     ------
     A tuple: (D, H, I, F) : float
@@ -604,7 +600,7 @@ def xyz2dhif(x, y, z):
     H: horizontal intensity (nT) : float
     I: inclination (degrees) : float
     F: total intensity (nT) : float
-    
+
 
 
     """
@@ -620,18 +616,18 @@ def xyz2dhif(x, y, z):
 def xyz2dhif_sv(x, y, z, xdot, ydot, zdot):
     """Calculate secular variation in D, H, I and F from (X, Y, Z) and
     (Xdot, Ydot, Zdot)
-    
+
     Based on code from D. Kerridge, 2019
-    
+
     Parameters
     ---------------
-    X: north component (nT) : float  
+    X: north component (nT) : float
     Y: east component (nT) : float
     Z: vertical component (nT) : float
     Xdot=dX/dt : rate of change of X : float
     Ydot=dY/dt : rate of change of Y : float
     Zdot=dZ/dt : rate of change of Z : float
-    
+
     Returns
     ------
     A tuple: (Ddot, Hdot, Idot, Fdot)
@@ -639,7 +635,7 @@ def xyz2dhif_sv(x, y, z, xdot, ydot, zdot):
     Hdot: rate of change of horizontal intensity (nT/year)
     Idot: rate of change of inclination (degrees/year)
     Fdot: rate of change of total intensity (nT/year)
-    
+
 
 
     """

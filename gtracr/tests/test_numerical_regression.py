@@ -1,17 +1,16 @@
-'''
+"""
 Numerical regression tests with tight tolerances.
 Golden values were captured from the frozen-field RK4 implementation (2026-03).
 These tests verify that optimizations do not change physical results.
-'''
+"""
 
-import math
 import numpy as np
 import pytest
 
 from gtracr.lib._libgtracr import IGRF
 from gtracr.trajectory import Trajectory
 
-DATA_PATH = 'gtracr/data/igrf13.json'
+DATA_PATH = "gtracr/data/igrf13.json"
 
 # ---------------------------------------------------------------------------
 # B-field component tests
@@ -52,9 +51,9 @@ def test_igrf_bfield_components(idx):
     br_exp, btheta_exp, bphi_exp = EXPECTED_BFIELD[idx]
     igrf = IGRF(DATA_PATH, 2020.0)
     br, btheta, bphi = igrf.values(r, theta, phi)
-    assert np.isclose(br,     br_exp,     rtol=1e-10), f"Br mismatch at coord {idx}"
+    assert np.isclose(br, br_exp, rtol=1e-10), f"Br mismatch at coord {idx}"
     assert np.isclose(btheta, btheta_exp, rtol=1e-10), f"Btheta mismatch at coord {idx}"
-    assert np.isclose(bphi,   bphi_exp,   rtol=1e-10), f"Bphi mismatch at coord {idx}"
+    assert np.isclose(bphi, bphi_exp, rtol=1e-10), f"Bphi mismatch at coord {idx}"
 
 
 # ---------------------------------------------------------------------------
@@ -63,63 +62,182 @@ def test_igrf_bfield_components(idx):
 
 # (plabel, zenith, azimuth, palt, lat, lng, dalt, rig, energy)
 INITIAL_VARIABLES = [
-    ("p+", 90., 90., 100., 0., 0., 0., 30., None),
-    ("p+", 120., 90., 100., 0., 0., -1., 30., None),
-    ("p+", 0., 25., 100., 50., 100., 0., 50., None),
-    ("p+", 90., 5., 100., 89., 20., 0., 20., None),
-    ("p+", 90., 5., 100., -90., 20., 0., 20., None),
-    ("e-", 90., 5., 100., 40., 200., 0., 20., None),
-    ("p+", 45., 265., 0., 40., 200., 0., 20., None),
-    ("p+", 45., 180., 10., 40., 200., 0., 20., None),
-    ("p+", 45., 0., 0., 89., 0., 0., 20., None),
-    ("p+", 45., 0., 0., 0., 180., 100., 20., None),
-    ("p+", 45., 0., 0., 0., 180., 100., 5., None),
-    ("p+", 45., 0., 0., 0., 180., 100., None, 10.),
-    ("p+", 9., 80., 0., 50., 260., 100., None, 50.),
+    ("p+", 90.0, 90.0, 100.0, 0.0, 0.0, 0.0, 30.0, None),
+    ("p+", 120.0, 90.0, 100.0, 0.0, 0.0, -1.0, 30.0, None),
+    ("p+", 0.0, 25.0, 100.0, 50.0, 100.0, 0.0, 50.0, None),
+    ("p+", 90.0, 5.0, 100.0, 89.0, 20.0, 0.0, 20.0, None),
+    ("p+", 90.0, 5.0, 100.0, -90.0, 20.0, 0.0, 20.0, None),
+    ("e-", 90.0, 5.0, 100.0, 40.0, 200.0, 0.0, 20.0, None),
+    ("p+", 45.0, 265.0, 0.0, 40.0, 200.0, 0.0, 20.0, None),
+    ("p+", 45.0, 180.0, 10.0, 40.0, 200.0, 0.0, 20.0, None),
+    ("p+", 45.0, 0.0, 0.0, 89.0, 0.0, 0.0, 20.0, None),
+    ("p+", 45.0, 0.0, 0.0, 0.0, 180.0, 100.0, 20.0, None),
+    ("p+", 45.0, 0.0, 0.0, 0.0, 180.0, 100.0, 5.0, None),
+    ("p+", 45.0, 0.0, 0.0, 0.0, 180.0, 100.0, None, 10.0),
+    ("p+", 9.0, 80.0, 0.0, 50.0, 260.0, 100.0, None, 50.0),
 ]
 
 EXPECTED_IGRF_SIXVEC = [
-    [6471199.68050388, 1.570796257719829, 0.00046304787079076373, -5.143545002470065e-21, -7.196133850247816e-21, 1.6079998378093046e-17],
-    [6395271.144827872, 1.3992367009947384, 1.9815374626089006, -8.576473297451113e-18, -3.0191953439754613e-18, 1.3264459191915995e-17],
-    [63712214.8539477, 0.8074387437774729, 2.1770700088482826, 2.6731276114383172e-17, 8.661272008667169e-19, 1.7137976762272475e-18],
-    [63713739.96693872, 0.2072419641715477, -1.995676058214853, 1.0713377464628803e-17, -4.1091609699408715e-19, -2.4775757546605917e-19],
-    [63712428.50813812, 4.610658305768503, 62847852133.84116, 3.58811687217861e-06, 3.6627401823020585e-07, 1.740677399716434e-11],
-    [63712061.66126494, 1.4614031647765793, -2.856421095363587, 1.0628653420170669e-17, 2.785097024529514e-19, -1.3921362950657391e-18],
-    [63713161.19193234, 1.0062287310793574, -2.298573719569141, 1.0607067318186453e-17, 1.0148524314729071e-18, 1.1916195694514073e-18],
-    [63714529.34146243, 1.789972410364906, -1.7889805515157322, 1.0520225644299797e-17, 1.6731228863883088e-18, 1.2365177382975789e-18],
-    [63713046.41897766, 0.353574856242518, -1.5676986454616886, 1.0717719040448463e-17, 9.910880434013549e-20, -2.378961477644391e-19],
-    [63714509.338436544, 1.3926079941190597, 5.802183827322609, 1.027698127671675e-17, -1.9494152261863959e-19, 3.0505090860606305e-18],
-    [6471152.09785546, 1.7062074962095228, 3.2713491909868777, -2.357155002479004e-18, 7.356247048921283e-19, 1.0525224252410776e-18],
-    [6470839.9779103, 1.788557541472736, 3.5009963288796593, -4.656278933674043e-18, -1.061712549427715e-18, 2.3911519244280324e-18],
-    [63714791.309966356, 0.8980221451744953, -1.3191453766497798, 2.673863545597222e-17, 1.0610689069329414e-18, 1.3822910964929718e-18],
+    [
+        6471199.68050388,
+        1.570796257719829,
+        0.00046304787079076373,
+        -5.143545002470065e-21,
+        -7.196133850247816e-21,
+        1.6079998378093046e-17,
+    ],
+    [
+        6395271.144827872,
+        1.3992367009947384,
+        1.9815374626089006,
+        -8.576473297451113e-18,
+        -3.0191953439754613e-18,
+        1.3264459191915995e-17,
+    ],
+    [
+        63712214.8539477,
+        0.8074387437774729,
+        2.1770700088482826,
+        2.6731276114383172e-17,
+        8.661272008667169e-19,
+        1.7137976762272475e-18,
+    ],
+    [
+        63713739.96693872,
+        0.2072419641715477,
+        -1.995676058214853,
+        1.0713377464628803e-17,
+        -4.1091609699408715e-19,
+        -2.4775757546605917e-19,
+    ],
+    [
+        63712428.50813812,
+        4.610658305768503,
+        62847852133.84116,
+        3.58811687217861e-06,
+        3.6627401823020585e-07,
+        1.740677399716434e-11,
+    ],
+    [
+        63712061.66126494,
+        1.4614031647765793,
+        -2.856421095363587,
+        1.0628653420170669e-17,
+        2.785097024529514e-19,
+        -1.3921362950657391e-18,
+    ],
+    [
+        63713161.19193234,
+        1.0062287310793574,
+        -2.298573719569141,
+        1.0607067318186453e-17,
+        1.0148524314729071e-18,
+        1.1916195694514073e-18,
+    ],
+    [
+        63714529.34146243,
+        1.789972410364906,
+        -1.7889805515157322,
+        1.0520225644299797e-17,
+        1.6731228863883088e-18,
+        1.2365177382975789e-18,
+    ],
+    [
+        63713046.41897766,
+        0.353574856242518,
+        -1.5676986454616886,
+        1.0717719040448463e-17,
+        9.910880434013549e-20,
+        -2.378961477644391e-19,
+    ],
+    [
+        63714509.338436544,
+        1.3926079941190597,
+        5.802183827322609,
+        1.027698127671675e-17,
+        -1.9494152261863959e-19,
+        3.0505090860606305e-18,
+    ],
+    [
+        6471152.09785546,
+        1.7062074962095228,
+        3.2713491909868777,
+        -2.357155002479004e-18,
+        7.356247048921283e-19,
+        1.0525224252410776e-18,
+    ],
+    [
+        6470839.9779103,
+        1.788557541472736,
+        3.5009963288796593,
+        -4.656278933674043e-18,
+        -1.061712549427715e-18,
+        2.3911519244280324e-18,
+    ],
+    [
+        63714791.309966356,
+        0.8980221451744953,
+        -1.3191453766497798,
+        2.673863545597222e-17,
+        1.0610689069329414e-18,
+        1.3822910964929718e-18,
+    ],
 ]
 
-EXPECTED_IGRF_ESCAPED = [False, False, True, True, True, True, True, True, True, True, False, False, True]
+EXPECTED_IGRF_ESCAPED = [
+    False,
+    False,
+    True,
+    True,
+    True,
+    True,
+    True,
+    True,
+    True,
+    True,
+    False,
+    False,
+    True,
+]
 
 
 @pytest.mark.parametrize("idx", range(len(INITIAL_VARIABLES)))
 def test_igrf_sixvector(idx):
     plabel, zenith, azimuth, palt, lat, lng, dalt, rig, en = INITIAL_VARIABLES[idx]
     traj = Trajectory(
-        plabel=plabel, zenith_angle=zenith, azimuth_angle=azimuth,
-        particle_altitude=palt, latitude=lat, longitude=lng,
-        detector_altitude=dalt, rigidity=rig, energy=en,
+        plabel=plabel,
+        zenith_angle=zenith,
+        azimuth_angle=azimuth,
+        particle_altitude=palt,
+        latitude=lat,
+        longitude=lng,
+        detector_altitude=dalt,
+        rigidity=rig,
+        energy=en,
         bfield_type="igrf",
     )
-    traj.get_trajectory(dt=1e-5, max_time=1.)
-    assert np.allclose(traj.final_sixvector, EXPECTED_IGRF_SIXVEC[idx], rtol=1e-4), \
+    traj.get_trajectory(dt=1e-5, max_time=1.0)
+    assert np.allclose(traj.final_sixvector, EXPECTED_IGRF_SIXVEC[idx], rtol=1e-4), (
         f"sixvector mismatch at case {idx}"
+    )
 
 
 @pytest.mark.parametrize("idx", range(len(INITIAL_VARIABLES)))
 def test_igrf_escaped_flag(idx):
     plabel, zenith, azimuth, palt, lat, lng, dalt, rig, en = INITIAL_VARIABLES[idx]
     traj = Trajectory(
-        plabel=plabel, zenith_angle=zenith, azimuth_angle=azimuth,
-        particle_altitude=palt, latitude=lat, longitude=lng,
-        detector_altitude=dalt, rigidity=rig, energy=en,
+        plabel=plabel,
+        zenith_angle=zenith,
+        azimuth_angle=azimuth,
+        particle_altitude=palt,
+        latitude=lat,
+        longitude=lng,
+        detector_altitude=dalt,
+        rigidity=rig,
+        energy=en,
         bfield_type="igrf",
     )
-    traj.get_trajectory(dt=1e-5, max_time=1.)
-    assert traj.particle_escaped == EXPECTED_IGRF_ESCAPED[idx], \
+    traj.get_trajectory(dt=1e-5, max_time=1.0)
+    assert traj.particle_escaped == EXPECTED_IGRF_ESCAPED[idx], (
         f"escaped flag mismatch at case {idx}: got {traj.particle_escaped}, expected {EXPECTED_IGRF_ESCAPED[idx]}"
+    )

@@ -3,7 +3,9 @@
 #define __MAGNETICFIELD_HPP_
 
 #include <math.h>
+
 #include <array>
+
 #include "constants.hpp"
 
 class MagneticField {
@@ -19,7 +21,7 @@ class MagneticField {
 
     Parameters
     -----------
-    
+
     - r (const double &) : the radial component
     - theta (const double &) : the polar component
     - phi (const double &) : the azimuthal component
@@ -30,17 +32,13 @@ class MagneticField {
     - val (std::array<double, 3>) :
         array containing the magnetic field values [Br, Btheta, Bphi]
   */
-  inline std::array<double, 3> values(const double &r, const double &theta,
-                                      const double &phi) {
+  inline std::array<double, 3> values(const double& r, const double& theta, const double& phi) {
     std::array<double, 3> val;
-    val[0] = 2. * (constants::RE / r) * (constants::RE / r) *
-             (constants::RE / r) * B0 * cos(theta);
-    val[1] = (constants::RE / r) * (constants::RE / r) * (constants::RE / r) *
-             B0 * sin(theta);
+    val[0] = 2. * (constants::RE / r) * (constants::RE / r) * (constants::RE / r) * B0 * cos(theta);
+    val[1] = (constants::RE / r) * (constants::RE / r) * (constants::RE / r) * B0 * sin(theta);
     val[2] = 0.;
     return val;
   }
-
 };
 
 #endif  // __MAGNETICFIELD_HPP_

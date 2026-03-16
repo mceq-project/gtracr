@@ -1,13 +1,13 @@
-'''
+"""
 Utility class for gtracr.
 Contains conversions between geodesic coordinates and debuggers for the package.
 may also contain other things (not known as of now)
-'''
+"""
 
 import os
-import sys
-import numpy as np
 import pickle
+
+import numpy as np
 
 from gtracr.lib.location import Location
 from gtracr.lib.particle import Particle
@@ -21,8 +21,8 @@ DATA_DIR = os.path.join(CURRENT_DIR, "data")
 
 
 def dec_to_dms(lat_dec, lng_dec):
-    '''
-    Converts geodesic coordinates expressed in decimal notation 
+    """
+    Converts geodesic coordinates expressed in decimal notation
     to DMS notation (degree, minutes, seconds).
 
     Parameters
@@ -42,7 +42,7 @@ def dec_to_dms(lat_dec, lng_dec):
     The evaluation is performed with reference to the DMS to decimal calculator:
     https://www.rapidtables.com/convert/number/degrees-to-degrees-minutes-seconds.html
 
-    The convention follows the WGS 84 convention as posed here 
+    The convention follows the WGS 84 convention as posed here
     : https://gisgeography.com/latitude-longitude-coordinates/
 
     The convention shows that:
@@ -54,34 +54,32 @@ def dec_to_dms(lat_dec, lng_dec):
     So with this, we see that:
     - latitude goes counter-clockwise from the equator
     - longitude goes counter-clockwise from the Prime Meridian
-    '''
+    """
     # latitude in dms
     lat_deg = int(np.floor(lat_dec))
-    lat_min = int(np.floor((lat_dec - lat_deg) * 60.))
-    lat_sec = int(np.floor((lat_dec - lat_deg - (lat_min / 60.)) * 60.))
+    lat_min = int(np.floor((lat_dec - lat_deg) * 60.0))
+    lat_sec = int(np.floor((lat_dec - lat_deg - (lat_min / 60.0)) * 60.0))
 
     # add north or south depending on sign of lat_dec
     lat_symb = "N" if lat_dec >= 0 else "S"
 
-    lat_dms = "{:d}°{:d}\'{:d}\"{:s}".format(lat_deg, lat_min, lat_sec,
-                                             lat_symb)
+    lat_dms = f"{lat_deg:d}°{lat_min:d}'{lat_sec:d}\"{lat_symb:s}"
 
     # longitude in dms
     lng_deg = int(np.floor(lng_dec))
-    lng_min = int(np.floor((lng_dec - lng_deg) * 60.))
-    lng_sec = int(np.floor((lng_dec - lng_deg - (lng_min / 60.)) * 60.))
+    lng_min = int(np.floor((lng_dec - lng_deg) * 60.0))
+    lng_sec = int(np.floor((lng_dec - lng_deg - (lng_min / 60.0)) * 60.0))
 
     # add east or west depending on sign of lng_dec
     lng_symb = "E" if lng_dec >= 0 else "W"
 
-    lng_dms = "{:d}°{:d}\'{:d}\"{:s}".format(lng_deg, lng_min, lng_sec,
-                                             lng_symb)
+    lng_dms = f"{lng_deg:d}°{lng_min:d}'{lng_sec:d}\"{lng_symb:s}"
 
     return lat_dms, lng_dms
 
 
 def ymd_to_dec(ymd_date):
-    '''
+    """
     Converts a date in yyyy-mm-dd format into decimal format in
     units of years.
 
@@ -98,17 +96,18 @@ def ymd_to_dec(ymd_date):
     - dec_date : float
         the date in decimal format, in units of years.
 
-    '''
+    """
     # break down the str to get year, month, date separately
     year, month, day = [float(val) for val in ymd_date.split("-")]
 
     # the number of days in each month
     # not considering leap years right now
     days_per_mth = np.array(
-        [31., 28., 31., 30., 31., 30., 31., 31., 30., 31., 30., 31.])
+        [31.0, 28.0, 31.0, 30.0, 31.0, 30.0, 31.0, 31.0, 30.0, 31.0, 30.0, 31.0]
+    )
 
     # get the total number of days based on the month + day
-    ndays = float(days_per_mth[int(month)-1]) + day
+    ndays = float(days_per_mth[int(month) - 1]) + day
 
     # check if year is a leap year or not
     # this will change the maximum # days in a year
@@ -119,7 +118,7 @@ def ymd_to_dec(ymd_date):
         ndays += 1
 
     # convert month into decimal years
-    dec_mth = month / 12.
+    dec_mth = month / 12.0
 
     # convert days into decimal years
     dec_days = ndays / max_ndays
@@ -129,12 +128,13 @@ def ymd_to_dec(ymd_date):
 
 
 def import_dict(fname):
-    '''
+    """
     Import the dictionary with filepath fname.
-    '''
+    """
     with open(fname, "rb") as f:
         the_dict = pickle.load(f)
     return the_dict
+
 
 # def get_locationdict():
 #     '''
@@ -146,22 +146,22 @@ def import_dict(fname):
 
 
 def set_locationdict():
-    '''
+    """
     Sets the location dictionary from some set of locations.
-    '''
+    """
     location_dict = {}
 
     locations = [
-        Location("Kamioka", 36.434800, 137.276599, 0.),
-        Location("IceCube", -89.99, 0., 0.),
-        Location("SNOLAB", 46.471983, -81.186701, 0.),
-        Location("UofA", 53.523230, -113.526319, 0.),
-        Location("CTA-North", 28.76216, -17.89201, 0.),
-        Location("CTA-South", -24.68342778, -24.68342778, 0.),
-        Location("ORCA", 42.80000000, 6.0333333, 0.),
-        Location("ANTARES", 42.8, 6.1666666, 0.),
-        Location("Baikal-GVD", 51.77139, 104.3978, 0.),
-        Location("TA", 39.208099, -113.121285, 0.)
+        Location("Kamioka", 36.434800, 137.276599, 0.0),
+        Location("IceCube", -89.99, 0.0, 0.0),
+        Location("SNOLAB", 46.471983, -81.186701, 0.0),
+        Location("UofA", 53.523230, -113.526319, 0.0),
+        Location("CTA-North", 28.76216, -17.89201, 0.0),
+        Location("CTA-South", -24.68342778, -24.68342778, 0.0),
+        Location("ORCA", 42.80000000, 6.0333333, 0.0),
+        Location("ANTARES", 42.8, 6.1666666, 0.0),
+        Location("Baikal-GVD", 51.77139, 104.3978, 0.0),
+        Location("TA", 39.208099, -113.121285, 0.0),
     ]
 
     # add location to location_dict if it does not exist
@@ -175,9 +175,9 @@ def set_locationdict():
 
 
 def set_particledict():
-    '''
+    """
     Sets the particle dictionary from some set of particles.
-    '''
+    """
     particle_dict = {}
 
     # different cosmic ray particles
@@ -185,7 +185,7 @@ def set_particledict():
         Particle("positron", -11, 0.5109 * (1e-3), 1, "e+"),
         Particle("electron", 11, 0.5109 * (1e-3), -1, "e-"),
         Particle("proton", 2212, 0.937272, 1, "p+"),
-        Particle("anti-proton", -2212, 0.937272, -1, "p-")
+        Particle("anti-proton", -2212, 0.937272, -1, "p-"),
     ]
 
     # add particle to particle_dict if it does not exist
@@ -196,6 +196,7 @@ def set_particledict():
             continue
 
     return particle_dict
+
 
 location_dict = set_locationdict()
 particle_dict = set_particledict()

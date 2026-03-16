@@ -1,27 +1,26 @@
-'''
+"""
 Tests for Boris and RK45 solvers (via Python Trajectory API) and
 IGRF table-lookup bfield_type ("table" / 't').
-'''
+"""
+
 import numpy as np
-import pytest
 
-from gtracr.trajectory import Trajectory
 from gtracr.lib.constants import EARTH_RADIUS
-
+from gtracr.trajectory import Trajectory
 
 # ---------------------------------------------------------------------------
 # Shared fixture parameters
 # ---------------------------------------------------------------------------
 
 _KWARGS_BASE = dict(
-    zenith_angle=45.,
-    azimuth_angle=90.,
-    rigidity=10.,
+    zenith_angle=45.0,
+    azimuth_angle=90.0,
+    rigidity=10.0,
     location_name="Kamioka",
     bfield_type="dipole",
 )
 
-_DT      = 1e-4
+_DT = 1e-4
 _MAXTIME = 0.1
 
 
@@ -29,35 +28,46 @@ _MAXTIME = 0.1
 # Boris pusher — Python API
 # ---------------------------------------------------------------------------
 
+
 def test_boris_runs():
-    '''Boris solver runs without error and returns a result'''
+    """Boris solver runs without error and returns a result"""
     traj = Trajectory(**_KWARGS_BASE, solver="boris")
     traj.get_trajectory(dt=_DT, max_time=_MAXTIME)
-    assert traj.final_time > 0.
+    assert traj.final_time > 0.0
 
 
 def test_boris_escaped_high_rigidity():
-    '''50 GV proton at zenith should escape with Boris solver'''
+    """50 GV proton at zenith should escape with Boris solver"""
     traj = Trajectory(
-        zenith_angle=0., azimuth_angle=0., rigidity=50.,
-        latitude=0., longitude=0., bfield_type="dipole", solver="boris",
+        zenith_angle=0.0,
+        azimuth_angle=0.0,
+        rigidity=50.0,
+        latitude=0.0,
+        longitude=0.0,
+        bfield_type="dipole",
+        solver="boris",
     )
     traj.get_trajectory(dt=_DT, max_time=0.5)
     assert traj.particle_escaped is True
 
 
 def test_boris_forbidden_low_rigidity():
-    '''0.1 GV proton at equator should not escape with Boris solver'''
+    """0.1 GV proton at equator should not escape with Boris solver"""
     traj = Trajectory(
-        zenith_angle=0., azimuth_angle=0., rigidity=0.1,
-        latitude=0., longitude=0., bfield_type="dipole", solver="boris",
+        zenith_angle=0.0,
+        azimuth_angle=0.0,
+        rigidity=0.1,
+        latitude=0.0,
+        longitude=0.0,
+        bfield_type="dipole",
+        solver="boris",
     )
     traj.get_trajectory(dt=_DT, max_time=0.05)
     assert traj.particle_escaped is False
 
 
 def test_boris_get_data():
-    '''Boris solver get_data=True returns a dict with expected keys'''
+    """Boris solver get_data=True returns a dict with expected keys"""
     traj = Trajectory(**_KWARGS_BASE, solver="boris")
     result = traj.get_trajectory(dt=_DT, max_time=_MAXTIME, get_data=True)
     assert result is not None
@@ -67,24 +77,24 @@ def test_boris_get_data():
 
 
 def test_boris_nsteps():
-    '''Boris solver nsteps matches the trajectory length'''
+    """Boris solver nsteps matches the trajectory length"""
     traj = Trajectory(**_KWARGS_BASE, solver="boris")
     result = traj.get_trajectory(dt=_DT, max_time=_MAXTIME, get_data=True)
-    from gtracr.lib._libgtracr import TrajectoryTracer as CppTT
-    from gtracr.lib.constants import ELEMENTARY_CHARGE, KG_PER_GEVC2, KG_M_S_PER_GEVC
-    import os
-    import math
     # nsteps for Boris = number of loop iterations = len(trajectory)
     assert len(result["t"]) > 0
 
 
 def test_boris_consistent_with_rk4():
-    '''Boris and RK4 should agree on escaped/forbidden for the same trajectory'''
+    """Boris and RK4 should agree on escaped/forbidden for the same trajectory"""
     kwargs = dict(
-        zenith_angle=0., azimuth_angle=0., rigidity=50.,
-        latitude=0., longitude=0., bfield_type="dipole",
+        zenith_angle=0.0,
+        azimuth_angle=0.0,
+        rigidity=50.0,
+        latitude=0.0,
+        longitude=0.0,
+        bfield_type="dipole",
     )
-    traj_rk4   = Trajectory(**kwargs, solver="rk4")
+    traj_rk4 = Trajectory(**kwargs, solver="rk4")
     traj_boris = Trajectory(**kwargs, solver="boris")
     traj_rk4.get_trajectory(dt=_DT, max_time=0.5)
     traj_boris.get_trajectory(dt=_DT, max_time=0.5)
@@ -95,37 +105,50 @@ def test_boris_consistent_with_rk4():
 # Adaptive RK45 solver — Python API
 # ---------------------------------------------------------------------------
 
+
 def test_rk45_runs():
-    '''RK45 solver runs without error and returns a result'''
+    """RK45 solver runs without error and returns a result"""
     traj = Trajectory(**_KWARGS_BASE, solver="rk45", atol=1e-4, rtol=1e-4)
     traj.get_trajectory(dt=_DT, max_time=_MAXTIME)
-    assert traj.final_time > 0.
+    assert traj.final_time > 0.0
 
 
 def test_rk45_escaped_high_rigidity():
-    '''50 GV proton at zenith should escape with RK45 solver'''
+    """50 GV proton at zenith should escape with RK45 solver"""
     traj = Trajectory(
-        zenith_angle=0., azimuth_angle=0., rigidity=50.,
-        latitude=0., longitude=0., bfield_type="dipole",
-        solver="rk45", atol=1e-4, rtol=1e-4,
+        zenith_angle=0.0,
+        azimuth_angle=0.0,
+        rigidity=50.0,
+        latitude=0.0,
+        longitude=0.0,
+        bfield_type="dipole",
+        solver="rk45",
+        atol=1e-4,
+        rtol=1e-4,
     )
     traj.get_trajectory(dt=_DT, max_time=0.5)
     assert traj.particle_escaped is True
 
 
 def test_rk45_forbidden_low_rigidity():
-    '''0.1 GV proton at equator should not escape with RK45 solver'''
+    """0.1 GV proton at equator should not escape with RK45 solver"""
     traj = Trajectory(
-        zenith_angle=0., azimuth_angle=0., rigidity=0.1,
-        latitude=0., longitude=0., bfield_type="dipole",
-        solver="rk45", atol=1e-4, rtol=1e-4,
+        zenith_angle=0.0,
+        azimuth_angle=0.0,
+        rigidity=0.1,
+        latitude=0.0,
+        longitude=0.0,
+        bfield_type="dipole",
+        solver="rk45",
+        atol=1e-4,
+        rtol=1e-4,
     )
     traj.get_trajectory(dt=_DT, max_time=0.05)
     assert traj.particle_escaped is False
 
 
 def test_rk45_get_data():
-    '''RK45 solver get_data=True returns a dict with expected keys'''
+    """RK45 solver get_data=True returns a dict with expected keys"""
     traj = Trajectory(**_KWARGS_BASE, solver="rk45", atol=1e-4, rtol=1e-4)
     result = traj.get_trajectory(dt=_DT, max_time=_MAXTIME, get_data=True)
     assert result is not None
@@ -135,9 +158,7 @@ def test_rk45_get_data():
 
 
 def test_rk45_fewer_steps_than_rk4():
-    '''RK45 should take far fewer accepted steps than RK4 for the same trajectory'''
-    from gtracr.lib._libgtracr import TrajectoryTracer as CppTT
-    from gtracr.lib.constants import ELEMENTARY_CHARGE, KG_PER_GEVC2
+    """RK45 should take far fewer accepted steps than RK4 for the same trajectory"""
     traj0 = Trajectory(**_KWARGS_BASE, solver="rk4")
     traj0.get_trajectory(dt=_DT, max_time=_MAXTIME)
     nsteps_rk4 = traj0.final_time / _DT  # approximate
@@ -149,12 +170,16 @@ def test_rk45_fewer_steps_than_rk4():
 
 
 def test_rk45_consistent_with_rk4():
-    '''RK45 and RK4 should agree on escaped/forbidden for the same trajectory'''
+    """RK45 and RK4 should agree on escaped/forbidden for the same trajectory"""
     kwargs = dict(
-        zenith_angle=0., azimuth_angle=0., rigidity=50.,
-        latitude=0., longitude=0., bfield_type="dipole",
+        zenith_angle=0.0,
+        azimuth_angle=0.0,
+        rigidity=50.0,
+        latitude=0.0,
+        longitude=0.0,
+        bfield_type="dipole",
     )
-    traj_rk4  = Trajectory(**kwargs, solver="rk4")
+    traj_rk4 = Trajectory(**kwargs, solver="rk4")
     traj_rk45 = Trajectory(**kwargs, solver="rk45", atol=1e-6, rtol=1e-6)
     traj_rk4.get_trajectory(dt=_DT, max_time=0.5)
     traj_rk45.get_trajectory(dt=_DT, max_time=0.5)
@@ -165,23 +190,29 @@ def test_rk45_consistent_with_rk4():
 # IGRF table bfield_type
 # ---------------------------------------------------------------------------
 
+
 def test_igrf_table_runs():
-    '''bfield_type="table" constructs and runs without error'''
+    """bfield_type="table" constructs and runs without error"""
     traj = Trajectory(
-        zenith_angle=45., azimuth_angle=90., rigidity=10.,
-        location_name="Kamioka", bfield_type="table",
+        zenith_angle=45.0,
+        azimuth_angle=90.0,
+        rigidity=10.0,
+        location_name="Kamioka",
+        bfield_type="table",
     )
     traj.get_trajectory(dt=_DT, max_time=_MAXTIME)
-    assert traj.final_time > 0.
+    assert traj.final_time > 0.0
 
 
 def test_igrf_table_consistent_with_igrf():
-    '''Table and direct IGRF should agree on particle_escaped for the same input'''
+    """Table and direct IGRF should agree on particle_escaped for the same input"""
     kwargs = dict(
-        zenith_angle=45., azimuth_angle=90., rigidity=30.,
+        zenith_angle=45.0,
+        azimuth_angle=90.0,
+        rigidity=30.0,
         location_name="Kamioka",
     )
-    traj_igrf  = Trajectory(**kwargs, bfield_type="igrf")
+    traj_igrf = Trajectory(**kwargs, bfield_type="igrf")
     traj_table = Trajectory(**kwargs, bfield_type="table")
     traj_igrf.get_trajectory(dt=_DT, max_time=_MAXTIME)
     traj_table.get_trajectory(dt=_DT, max_time=_MAXTIME)
@@ -189,27 +220,38 @@ def test_igrf_table_consistent_with_igrf():
 
 
 def test_igrf_table_field_accuracy():
-    '''Table B-field should match direct IGRF values to within 1% at a sample point'''
-    from gtracr.lib._libgtracr import TrajectoryTracer as CppTT, IGRF
+    """Table B-field should match direct IGRF values to within 1% at a sample point"""
     import os
-    data_dir = os.path.join(os.path.dirname(os.path.dirname(
-        os.path.realpath(__file__))), "data")
+
+    from gtracr.lib._libgtracr import IGRF
+    from gtracr.lib._libgtracr import TrajectoryTracer as CppTT
+
+    data_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "data"
+    )
 
     igrf = IGRF(os.path.join(data_dir, "igrf13.json"), 2020.0)
 
-    r     = EARTH_RADIUS + 100e3   # 100 km altitude
-    theta = np.pi / 2.             # equator
-    phi   = 0.0                    # prime meridian
+    r = EARTH_RADIUS + 100e3  # 100 km altitude
+    theta = np.pi / 2.0  # equator
+    phi = 0.0  # prime meridian
 
     direct = np.array(igrf.values(r, theta, phi))
 
     # Build a TrajectoryTracer with table mode to exercise table generation
     from gtracr.lib.constants import ELEMENTARY_CHARGE, KG_PER_GEVC2
-    tracer = CppTT(
-        ELEMENTARY_CHARGE, 0.938 * KG_PER_GEVC2,
-        100e3, 10. * EARTH_RADIUS, 1e-4, 1000,
-        't', (data_dir, 2020.0), 'r',
+
+    CppTT(
+        ELEMENTARY_CHARGE,
+        0.938 * KG_PER_GEVC2,
+        100e3,
+        10.0 * EARTH_RADIUS,
+        1e-4,
+        1000,
+        "t",
+        (data_dir, 2020.0),
+        "r",
     )
     # The tracer internally generated the table; test it indirectly via a trajectory
     assert direct is not None  # IGRF initialized correctly
-    assert np.any(direct != 0.)
+    assert np.any(direct != 0.0)

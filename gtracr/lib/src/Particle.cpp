@@ -39,28 +39,25 @@ Particle::Particle() : nm{"Proton"}, pid{2212}, m{0.938272}, ch{1}, lbl{"p+"} {
   p = sqrt(m * m + 1.);
   R = (p) / abs(ch);
   v = (p * constants::SPEED_OF_LIGHT) /
-      sqrt((m * constants::SPEED_OF_LIGHT * m * constants::SPEED_OF_LIGHT) +
-           p * p) *
+      sqrt((m * constants::SPEED_OF_LIGHT * m * constants::SPEED_OF_LIGHT) + p * p) *
       constants::SPEED_OF_LIGHT;
 }
 
 // Construct with given initial configurations
 // default energy set to 1GeV
-Particle::Particle(const std::string &name, const int pdgid, const double &mass,
-                   const int charge, const std::string &label)
+Particle::Particle(const std::string& name, const int pdgid, const double& mass, const int charge,
+                   const std::string& label)
     : nm{name}, pid{pdgid}, m{mass}, ch{charge}, lbl{label} {
   p = sqrt(m * m + 1.);
   R = (p) / abs(ch);
   v = (p * constants::SPEED_OF_LIGHT) /
-      sqrt((m * constants::SPEED_OF_LIGHT * m * constants::SPEED_OF_LIGHT) +
-           p * p) *
+      sqrt((m * constants::SPEED_OF_LIGHT * m * constants::SPEED_OF_LIGHT) + p * p) *
       constants::SPEED_OF_LIGHT;
 }
 
 // Constructor with some provided energy
-Particle::Particle(const std::string &name, const int pdgid, const double &mass,
-                   const int charge, const std::string &label,
-                   const double &energy = 0., const double &rigidity = 0.)
+Particle::Particle(const std::string& name, const int pdgid, const double& mass, const int charge,
+                   const std::string& label, const double& energy = 0., const double& rigidity = 0.)
     : nm{name}, pid{pdgid}, m{mass}, ch{charge}, lbl{label} {
   // set kinematical variables if energy xor rigidity is given
   if (abs(energy) < 1e-10) {
@@ -76,7 +73,7 @@ Particle::Particle(const std::string &name, const int pdgid, const double &mass,
 Particle::~Particle() {}
 
 // copy constructor
-Particle::Particle(const Particle &part)
+Particle::Particle(const Particle& part)
     : nm{part.nm}, pid{part.pid}, m{part.m}, ch{part.ch}, lbl{part.lbl} {
   p = part.p;
   v = part.v;
@@ -84,7 +81,7 @@ Particle::Particle(const Particle &part)
 }
 
 // copy assignment operator
-Particle &Particle::operator=(const Particle &part) {
+Particle& Particle::operator=(const Particle& part) {
   nm = part.nm;
   pid = part.pid;
   m = part.m;
@@ -98,45 +95,40 @@ Particle &Particle::operator=(const Particle &part) {
 }
 
 // Lorentz factor
-const double &Particle::gamma() {
-  return 1. / sqrt(1. - (v / constants::SPEED_OF_LIGHT) *
-                            (v / constants::SPEED_OF_LIGHT));
+const double& Particle::gamma() {
+  return 1. / sqrt(1. - (v / constants::SPEED_OF_LIGHT) * (v / constants::SPEED_OF_LIGHT));
 }
 
-const double &Particle::gamma(const double &vel) {
-  return 1. / sqrt(1. - (vel / constants::SPEED_OF_LIGHT) *
-                            (vel / constants::SPEED_OF_LIGHT));
+const double& Particle::gamma(const double& vel) {
+  return 1. / sqrt(1. - (vel / constants::SPEED_OF_LIGHT) * (vel / constants::SPEED_OF_LIGHT));
 }
 
 // setters
-void Particle::set_from_energy(const double &energy) {
+void Particle::set_from_energy(const double& energy) {
   p = sqrt(energy * energy - m * m);
   R = (p) / abs(ch);
   v = (p * constants::SPEED_OF_LIGHT) /
-      sqrt((m * constants::SPEED_OF_LIGHT * m * constants::SPEED_OF_LIGHT) +
-           p * p) *
+      sqrt((m * constants::SPEED_OF_LIGHT * m * constants::SPEED_OF_LIGHT) + p * p) *
       constants::SPEED_OF_LIGHT;
 }
 
-void Particle::set_from_momentum(const double &_p) {
+void Particle::set_from_momentum(const double& _p) {
   p = _p;
   R = (p) / abs(ch);
   v = (p * constants::SPEED_OF_LIGHT) /
-      sqrt((m * constants::SPEED_OF_LIGHT * m * constants::SPEED_OF_LIGHT) +
-           p * p) *
+      sqrt((m * constants::SPEED_OF_LIGHT * m * constants::SPEED_OF_LIGHT) + p * p) *
       constants::SPEED_OF_LIGHT;
 }
 
-void Particle::set_from_rigidity(const double &_R) {
+void Particle::set_from_rigidity(const double& _R) {
   p = (_R * abs(ch));
   R = _R;
   v = (p * constants::SPEED_OF_LIGHT) /
-      sqrt((m * constants::SPEED_OF_LIGHT * m * constants::SPEED_OF_LIGHT) +
-           p * p) *
+      sqrt((m * constants::SPEED_OF_LIGHT * m * constants::SPEED_OF_LIGHT) + p * p) *
       constants::SPEED_OF_LIGHT;
 }
 
-void Particle::set_from_velocity(const double &_v) {
+void Particle::set_from_velocity(const double& _v) {
   p = gamma(_v) * m * _v;
   v = _v;
   R = (p) / abs(ch);

@@ -23,62 +23,61 @@ class Particle {
   // Constructs a particle with some given name, pdgid, mass, charge, and label
   // to associate the particle with. The particle kinematics are set with the
   // default energy of 1GeV.
-  Particle(const std::string &name, const int pdgid, const double &mass,
-           const int charge, const std::string &label);
+  Particle(const std::string& name, const int pdgid, const double& mass, const int charge,
+           const std::string& label);
   // Constructs a particle with some given name, pdgid, mass, charge, and label
   // to associate the particle with. The particle kinematics can either be set
   // with user inputs of rigidity or energy, but not both (or none), otherwise
   // this will throw an error
-  Particle(const std::string &name, const int pdgid, const double &mass,
-           const int charge, const std::string &label, const double &energy,
-           const double &rigidity);
+  Particle(const std::string& name, const int pdgid, const double& mass, const int charge,
+           const std::string& label, const double& energy, const double& rigidity);
   // destructor
   ~Particle();
   // copy constructor / operator
-  Particle(const Particle &);
-  Particle &operator=(const Particle &);
+  Particle(const Particle&);
+  Particle& operator=(const Particle&);
 
   // getters
   // the name of the particle
-  const std::string &name() const { return nm; }
+  const std::string& name() const { return nm; }
   // the mass of the particle
-  const double &mass() const { return m; }
+  const double& mass() const { return m; }
   // the charge of the particle
   const int charge() const { return ch; }
   // the PDG ID of the particle, defined by PDG
   const int pdgid() const { return pid; }
   // the label associated with the particle
-  const std::string &label() const { return lbl; }
+  const std::string& label() const { return lbl; }
   // the particle momentum
-  const double &momentum() const { return p; }
+  const double& momentum() const { return p; }
   // the particle velocity in magnitude
-  const double &velocity() const { return v; }
+  const double& velocity() const { return v; }
   // the particle rigidity
-  const double &rigidity() const { return R; }
+  const double& rigidity() const { return R; }
 
   // setters
   // modify the momentum given another value of the momentum
-  void set_momentum(const double &_p) { p = _p; }
+  void set_momentum(const double& _p) { p = _p; }
   // modify the velocity given another value of velocity
-  void set_velocity(const double &_v) { v = _v; }
+  void set_velocity(const double& _v) { v = _v; }
   // modify the rigidity given another value of rigidity
-  void set_rigidity(const double &_R) { R = _R; }
+  void set_rigidity(const double& _R) { R = _R; }
 
   // setters for kinematical variables (momentum, velocity, rigidity)
   // set kinematical variables from energy
-  void set_from_energy(const double &energy);
+  void set_from_energy(const double& energy);
   // set kinematical variables from momentum
-  void set_from_momentum(const double &momentum);
+  void set_from_momentum(const double& momentum);
   // set kinematical variables from rigidity
-  void set_from_rigidity(const double &rigidity);
+  void set_from_rigidity(const double& rigidity);
   // set kinematical variables from velocity
-  void set_from_velocity(const double &velocity);
+  void set_from_velocity(const double& velocity);
 
   // utility function
   // the lorentz factor evaluated from the particle's velocity
-  const double &gamma();
+  const double& gamma();
   // the lorentz factor evaluated from user-inputted velocity
-  const double &gamma(const double &velocity);
+  const double& gamma(const double& velocity);
   // print the members of the Particle instance
   void print();
 

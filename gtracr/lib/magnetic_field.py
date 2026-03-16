@@ -1,12 +1,12 @@
 import gtracr.lib.igrf_utils as iuf
-from gtracr.lib.constants import EARTH_RADIUS, G10, DEG_PER_RAD
-'''
+from gtracr.lib.constants import DEG_PER_RAD, EARTH_RADIUS, G10
+
+"""
 Library that controls the equation for the Earth's magnetic field.
-'''
+"""
 
 import os
-import sys
-import os.path as p
+
 import numpy as np
 from scipy.interpolate import interp1d
 
@@ -15,27 +15,28 @@ PARENT_DIR = os.path.dirname(CURRENT_DIR)
 
 
 class MagneticField:
-    '''
-    The base class that contains the properties of 
+    """
+    The base class that contains the properties of
     Earth's geomagnetic field defined in spherical coordinates.
 
     The base class uses the ideal dipole approximation
     in which the first-order approximation of the series expansion
     of the magnetic potential of Earth's geomagnetic field
-    is used. 
+    is used.
 
     Notes
     ------
-    - The Earth's magnetic field is assumed to consist of 
+    - The Earth's magnetic field is assumed to consist of
     no external currents, i.e. curl(B) = 0
 
-    '''
+    """
+
     def __init__(self):
         pass
 
     def values(self, r, theta, phi):
-        '''
-        The values of the magnetic field in spherical 
+        """
+        The values of the magnetic field in spherical
         coordinates at a given location (r, theta, phi)
 
         Parameters
@@ -51,29 +52,29 @@ class MagneticField:
         -------
         - Br, Btheta, Bphi: np.array(float), size 3
             The spherical components of the magnetic field
-        '''
+        """
 
-        Br = -2. * (EARTH_RADIUS / r)**3. * G10 * np.cos(theta)
-        Btheta = -(EARTH_RADIUS / r)**3. * G10 * np.sin(theta)
-        Bphi = 0.
+        Br = -2.0 * (EARTH_RADIUS / r) ** 3.0 * G10 * np.cos(theta)
+        Btheta = -((EARTH_RADIUS / r) ** 3.0) * G10 * np.sin(theta)
+        Bphi = 0.0
 
         return np.array([Br, Btheta, Bphi])
 
 
 class IGRF13(MagneticField):
-    '''
-    Derived class from MagneticField class that 
-    describes Earth's geomagnetic field using the 
+    """
+    Derived class from MagneticField class that
+    describes Earth's geomagnetic field using the
     International Geomagnetic Reference Field (IGRF)
     of the 13th Edition (2020).
 
     The scripts that produces the IGRF magnetic field
-    are obtained from the Python scripts that are 
-    officially constructed by the V-MOD group in the 
+    are obtained from the Python scripts that are
+    officially constructed by the V-MOD group in the
     International Union of Geodesy and Geophysics.
 
-    More information about the IGRF-13 model can be obtained 
-    here: https://www.ngdc.noaa.gov/IAGA/vmod/igrf.html 
+    More information about the IGRF-13 model can be obtained
+    here: https://www.ngdc.noaa.gov/IAGA/vmod/igrf.html
 
     Members
     -------
@@ -87,15 +88,16 @@ class IGRF13(MagneticField):
     Initialization Parameters
     -------------------------
     - curr_year : float
-        the current year in years. This is required as the 
+        the current year in years. This is required as the
         magnetic field values vary in a linear fashion per year.
 
     - nmax : int, optional
-        the number to truncate the series expansion of the 
-        magnetic field. The default value is obtained from 
+        the number to truncate the series expansion of the
+        magnetic field. The default value is obtained from
         the .shc file.
 
-    '''
+    """
+
     def __init__(self, curr_year, nmax=None):
         # override MagneticField __init__ function
         # not necessary, but for decorative sake
@@ -136,20 +138,17 @@ class IGRF13(MagneticField):
 
         # check if theta / phi is > 180 or > 360 respectively
         # this is to prevent errors to be raised by the igrf evaluator
-        if theta > 180.:
-            theta = (theta % 180.)  # normalize by nearest remainder from 180
+        if theta > 180.0:
+            theta = theta % 180.0  # normalize by nearest remainder from 180
 
-        if phi > 360.:
-            phi = (phi % 360.)  # normalize by nearest remainder from 360
+        if phi > 360.0:
+            phi = phi % 360.0  # normalize by nearest remainder from 360
 
         # obtaining the values can easily be done by using
         # the function synth_values from igrf_utils.py
-        Br, Btheta, Bphi = iuf.synth_values(self.igrf_coeffs,
-                                            r,
-                                            theta,
-                                            phi,
-                                            nmax=self.nmax)
+        Br, Btheta, Bphi = iuf.synth_values(
+            self.igrf_coeffs, r, theta, phi, nmax=self.nmax
+        )
 
         # take first index since synth_values return arrays, not scalars
-        return np.array([Br, Btheta, Bphi]) \
-                                            * (1e-9)  # convert to teslas
+        return np.array([Br, Btheta, Bphi]) * (1e-9)  # convert to teslas

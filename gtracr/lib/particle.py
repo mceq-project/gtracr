@@ -1,6 +1,3 @@
-from gtracr.lib.constants import SPEED_OF_LIGHT
-import os
-import sys
 import numpy as np
 
 
@@ -36,11 +33,11 @@ class Particle:
         self.mass = mass
         self.charge = charge
         self.label = label
-        self.momentum = 0.
-        self.rigidity = 0.
+        self.momentum = 0.0
+        self.rigidity = 0.0
 
     def set_from_energy(self, energy):
-        self.momentum = np.sqrt(energy**2. - self.mass**2.)
+        self.momentum = np.sqrt(energy**2.0 - self.mass**2.0)
         self.rigidity = self.momentum / np.abs(self.charge)
 
     def set_from_rigidity(self, rigidity):
@@ -52,18 +49,18 @@ class Particle:
         self.rigidity = self.momentum / np.abs(self.charge)
 
     def get_energy_rigidity(self):
-        return np.sqrt((self.rigidity * np.abs(self.charge))**2. +
-                       self.mass**2.) + self.mass
+        return (
+            np.sqrt((self.rigidity * np.abs(self.charge)) ** 2.0 + self.mass**2.0)
+            + self.mass
+        )
 
     # string represetation for print output
     def __str__(self):
-        return "{:s}: PID = {:d}, m = {:.6f}GeV, Z = {:d}e \n Momentum = {:.6e}, Rigidity = {:.6e}".format(
-            self.name, self.pid, self.mass, self.charge, self.momentum,
-            self.rigidity)
+        return f"{self.name:s}: PID = {self.pid:d}, m = {self.mass:.6f}GeV, Z = {self.charge:d}e \n Momentum = {self.momentum:.6e}, Rigidity = {self.rigidity:.6e}"
 
 
 # example using proton
-if __name__ == '__main__':
+if __name__ == "__main__":
     proton = Particle("Proton", 2122, 0.937272, 1, "p+")
     print(proton)
     print(proton.momentum)

@@ -29,27 +29,25 @@ class Location {
   // altitude as inputs. The name of the location is set to be "Default Name",
   // for no other purposes other than to provide some input to the name
   // variable.
-  Location(const double &latitude, const double &longitude,
-           const double &altitude);
+  Location(const double& latitude, const double& longitude, const double& altitude);
   // Constructor
   // This constructs a Location object of any arbitrary latitude, longitude, and
   // altitude at some known location, provided with the variable name
-  Location(const std::string &name, const double &latitude,
-           const double &longitude,
-           const double &altitude);  // with location name
+  Location(const std::string& name, const double& latitude, const double& longitude,
+           const double& altitude);  // with location name
   // destructors
   ~Location() {}
   // Copy constructor / operator
-  Location(const Location &);
-  Location &operator=(const Location &);
+  Location(const Location&);
+  Location& operator=(const Location&);
   // get the name of the location
-  const std::string &name() const { return ln; }
+  const std::string& name() const { return ln; }
   // get the latitude of the location
-  const double &latitude() const { return lat; }
+  const double& latitude() const { return lat; }
   // get the longitude of the location
-  const double &longitude() const { return lng; }
+  const double& longitude() const { return lng; }
   // get the altitude of the location
-  const double &altitude() const { return alt; }
+  const double& altitude() const { return alt; }
   // print the name and the geodesic coordinates of the location
   void print();
 };

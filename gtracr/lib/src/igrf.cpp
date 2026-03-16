@@ -14,19 +14,24 @@ using json = nlohmann::json;
        The current year, month, and day in decimal days
  */
 IGRF::IGRF(const std::string& fname, const double sdate)
-    : model_index{0}, nmodel{24}, igdgc{3}, sdate_{sdate}, 
-    epoch1_{0.}, epoch2_{0.}, nmain1_{0}, nmain2_{0}, 
-    nsv1_{0}, nsv2_{0} {
-
+    : model_index{0},
+      nmodel{24},
+      igdgc{3},
+      sdate_{sdate},
+      epoch1_{0.},
+      epoch2_{0.},
+      nmain1_{0},
+      nmain2_{0},
+      nsv1_{0},
+      nsv2_{0} {
   if (sdate_ > igrf_const::MAXEPOCH) {
-      epoch1_ = igrf_const::MAXEPOCH;
-      epoch2_ = igrf_const::MAXEPOCH + 5.;
-  }
-  else {
-  // get epochs in which we want to interpolate / extrapolate
-  for (double epoch=1900; epoch<=igrf_const::MAXEPOCH; epoch+=5) {
-    // set date to maximum epoch if given date is extrapolated
-        if ((sdate_ - epoch) < 2.5) {  // not abs value to get the epoch before the date
+    epoch1_ = igrf_const::MAXEPOCH;
+    epoch2_ = igrf_const::MAXEPOCH + 5.;
+  } else {
+    // get epochs in which we want to interpolate / extrapolate
+    for (double epoch = 1900; epoch <= igrf_const::MAXEPOCH; epoch += 5) {
+      // set date to maximum epoch if given date is extrapolated
+      if ((sdate_ - epoch) < 2.5) {  // not abs value to get the epoch before the date
         epoch1_ = epoch;
         epoch2_ = epoch + 5.;
         break;
@@ -103,7 +108,7 @@ void IGRF::getshc(const std::string& fname) {
   {
     int ncoeffs1 = nmain1_ * (nmain1_ + 2);
     for (int i = 1; i <= ncoeffs1; ++i) {
-      gh1_arr[i]   = igrf_map[epoch1]["gh"][i - 1];
+      gh1_arr[i] = igrf_map[epoch1]["gh"][i - 1];
       ghsv1_arr[i] = igrf_map[epoch1]["gh_sv"][i - 1];
     }
   }
@@ -114,7 +119,7 @@ void IGRF::getshc(const std::string& fname) {
     nsv2_ = igrf_map[epoch2]["nsv"];
     int ncoeffs2 = nmain2_ * (nmain2_ + 2);
     for (int i = 1; i <= ncoeffs2; ++i) {
-      gh2_arr[i]   = igrf_map[epoch2]["gh"][i - 1];
+      gh2_arr[i] = igrf_map[epoch2]["gh"][i - 1];
       ghsv2_arr[i] = igrf_map[epoch2]["gh_sv"][i - 1];
     }
   }
@@ -160,7 +165,6 @@ void IGRF::interpsh(double date, int gh) {
   int k, l;
   int ii;
   double factor;
-
 
   factor = (date - epoch1_) / (epoch2_ - epoch1_);
   if (nmain1_ == nmain2_) {
@@ -222,7 +226,6 @@ void IGRF::interpsh(double date, int gh) {
       std::cout << "\nError in subroutine extrapsh" << std::endl;
       break;
   }
-
 }
 
 /****************************************************************************/
@@ -370,8 +373,8 @@ void IGRF::extrapsh(double date, int gh) {
 /*           August 17, 1988                                                */
 /*                                                                          */
 /****************************************************************************/
-void IGRF::shval3(int igdgc, double flat, double flon, double elev, int gh,
-                  int iext, int ext1, int ext2, int ext3) {
+void IGRF::shval3(int igdgc, double flat, double flon, double elev, int gh, int iext, int ext1,
+                  int ext2, int ext3) {
   double earths_radius = 6371.2;
   double dtr = 0.01745329;
   double slat;
@@ -525,8 +528,7 @@ void IGRF::shval3(int igdgc, double flat, double flon, double elev, int gh,
           bfield_.x += cc * q[k];
           bfield_.z -= cc * p[k];
           if (clat > 0) {
-            bfield_.y +=
-                (aa * sl[m] - bb * cl[m]) * fm * p[k] / ((fn + 1.0) * clat);
+            bfield_.y += (aa * sl[m] - bb * cl[m]) * fm * p[k] / ((fn + 1.0) * clat);
           } else {
             bfield_.y += (aa * sl[m] - bb * cl[m]) * q[k] * slat;
           }
@@ -538,8 +540,7 @@ void IGRF::shval3(int igdgc, double flat, double flon, double elev, int gh,
           bfield_temp_.x += cc * q[k];
           bfield_temp_.z -= cc * p[k];
           if (clat > 0) {
-            bfield_temp_.y +=
-                (aa * sl[m] - bb * cl[m]) * fm * p[k] / ((fn + 1.0) * clat);
+            bfield_temp_.y += (aa * sl[m] - bb * cl[m]) * fm * p[k] / ((fn + 1.0) * clat);
           } else {
             bfield_temp_.y += (aa * sl[m] - bb * cl[m]) * q[k] * slat;
           }
@@ -587,8 +588,7 @@ void IGRF::shval3(int igdgc, double flat, double flon, double elev, int gh,
   }
 }
 
-std::array<double, 3> IGRF::values(const double& r, const double& theta,
-                                   const double& phi) {
+std::array<double, 3> IGRF::values(const double& r, const double& theta, const double& phi) {
   // convert to lat, long, since shval3 is in this format as well
   // latitude is the north latitude in degrees (+ is north)
   // longitude is east latitude in degrees (+ is east)
@@ -621,9 +621,9 @@ std::array<double, 3> IGRF::values(const double& r, const double& theta,
   // shval3 fills bfield_ in nanotesla (nT); convert to Tesla to match
   // MagneticField::values() and the SI units expected by TrajectoryTracer.
   constexpr double NT_TO_T = 1e-9;
-  values[0] = -bfield_.z * NT_TO_T;   // Br     = -B_down
-  values[1] = -bfield_.x * NT_TO_T;   // Btheta = -B_north
-  values[2] =  bfield_.y * NT_TO_T;   // Bphi   =  B_east
+  values[0] = -bfield_.z * NT_TO_T;  // Br     = -B_down
+  values[1] = -bfield_.x * NT_TO_T;  // Btheta = -B_north
+  values[2] = bfield_.y * NT_TO_T;   // Bphi   =  B_east
 
   return values;
 }

@@ -4,10 +4,10 @@
 #include <array>
 #include <fstream>
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <nlohmann/json.hpp>
 
 #include "MagneticField.hpp"
 
@@ -63,19 +63,18 @@ class IGRF : public MagneticField {
   // key members for interpolation
   double epoch1_;  // first epoch
   double epoch2_;  // next epoch
-  int nmain1_;  // # main coeffs in first epoch
-  int nmain2_;  // # main coeffs in second epoch
-  int nsv1_;  // # secular variation coeffs in first epoch
-  int nsv2_;  // # secular variation coeffs in second epoch
+  int nmain1_;     // # main coeffs in first epoch
+  int nmain2_;     // # main coeffs in second epoch
+  int nsv1_;       // # secular variation coeffs in first epoch
+  int nsv2_;       // # secular variation coeffs in second epoch
 
   // containers for coefficients
-  std::array<double, igrf_const::MAXCOEFF> gh1_arr;   // coeff of first model
-  std::array<double, igrf_const::MAXCOEFF> gh2_arr;  // coeff of second model
-  std::array<double, igrf_const::MAXCOEFF> ghsv1_arr;   // coeff of first sv model
+  std::array<double, igrf_const::MAXCOEFF> gh1_arr;    // coeff of first model
+  std::array<double, igrf_const::MAXCOEFF> gh2_arr;    // coeff of second model
+  std::array<double, igrf_const::MAXCOEFF> ghsv1_arr;  // coeff of first sv model
   std::array<double, igrf_const::MAXCOEFF> ghsv2_arr;  // coeff of second sv model
   std::array<double, igrf_const::MAXCOEFF> gh_arr;     // coefficients
-  std::array<double, igrf_const::MAXCOEFF>
-      ghsv_arr;  // secular variation coeffs
+  std::array<double, igrf_const::MAXCOEFF> ghsv_arr;   // secular variation coeffs
 
   // bfield values in cartesian coordiantes
   struct {
@@ -117,9 +116,9 @@ class IGRF : public MagneticField {
     - fname (const std::string &) :
         the filepath to the coefficient file
   */
-  void getshc(const std::string &fname);
+  void getshc(const std::string& fname);
   /*
-    Interpolates the spherical harmonic coefficients in between two epochs to 
+    Interpolates the spherical harmonic coefficients in between two epochs to
     obtain the coefficients for the specified date. The interpolation is done
     linearly in time using a first-order Taylor approximation.
 
@@ -188,7 +187,7 @@ class IGRF : public MagneticField {
 
  public:
   /*
-  Initialize the IGRF model of Earth's magnetic field. The coefficients 
+  Initialize the IGRF model of Earth's magnetic field. The coefficients
   are imported and are stored in the corresponding arrays.
 
   This code is derived from the MagneticField class that contains the Earth's
@@ -221,7 +220,7 @@ class IGRF : public MagneticField {
      - sdate (double) :
          The current year, month, and day in decimal days
    */
-  IGRF(const std::string &fname, const double sdate);
+  IGRF(const std::string& fname, const double sdate);
   /****************************************************************************/
   /*                                                                          */
   /*                           Subroutine shval3                              */
@@ -265,8 +264,8 @@ class IGRF : public MagneticField {
   /*           August 17, 1988                                                */
   /*                                                                          */
   /****************************************************************************/
-  void shval3(int igdgc, double flat, double flon, double elev, int gh,
-              int iext = 0, int ext1 = 0, int ext2 = 0, int ext3 = 0);
+  void shval3(int igdgc, double flat, double flon, double elev, int gh, int iext = 0, int ext1 = 0,
+              int ext2 = 0, int ext3 = 0);
   /*
   Obtain the values of the IGRF magnetic field components from the 3-vector in
   spherical coordinates.
@@ -283,12 +282,11 @@ class IGRF : public MagneticField {
       Array containing the radial, polar, and azimuthal components of the
       magnetic field.
   */
-  std::array<double, 3> values(const double &r, const double &theta,
-                               const double &phi);
+  std::array<double, 3> values(const double& r, const double& theta, const double& phi);
   /*
   The starting date of the model in decimal days
   */
-  inline const double &sdate() { return sdate_; }
+  inline const double& sdate() { return sdate_; }
   /*
   The number of truncation for the chosen model
   */
@@ -298,9 +296,7 @@ class IGRF : public MagneticField {
    of the resulting magnetic field at the provided (r, theta, phi) values in
    IGRF.values(). Mainly used for debugging purposes.
   */
-  inline std::array<double, 3> cartesian_values() {
-    return {bfield_.x, bfield_.y, bfield_.z};
-  }
+  inline std::array<double, 3> cartesian_values() { return {bfield_.x, bfield_.y, bfield_.z}; }
 };  // IGRF
 
 #endif  // __IGRF_HPP_
