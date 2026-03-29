@@ -1,153 +1,158 @@
-import sys
-import os
-import numpy as np
-import pickle
+"""
+Evaluate geomagnetic rigidity cutoffs (GMRC) for a location via Monte Carlo
+and produce scatter and heatmap plots.
+"""
+
 import argparse
+import pickle
+from pathlib import Path
 
 from gtracr.geomagnetic_cutoffs import GMRC
+from gtracr.plotting import plot_gmrc_heatmap, plot_gmrc_scatter
 from gtracr.utils import location_dict
-from gtracr.plotting import plot_gmrc_scatter, plot_gmrc_heatmap
 
-# add filepath of gtracr to sys.path
-CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
-PARENT_DIR = os.path.dirname(CURRENT_DIR)
-PLOT_DIR = os.path.join(PARENT_DIR, "..", "gtracr_plots")
-
-# create directory if gtracr_plots dir does not exist
-if not os.path.isdir(PLOT_DIR):
-    os.mkdir(PLOT_DIR)
+PLOT_DIR = Path(__file__).parent.parent.parent / "gtracr_plots"
+PLOT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def export_as_pkl(fpath, ds):
-    with open(fpath, "wb") as f:
-        pickle.dump(ds, f, protocol=-1)
+def _run_gmrc(gmrc, args):
+    """Evaluate gmrc, then plot."""
+    plabel = args.particle
+    ngrid_azimuth = 360
+    ngrid_zenith = 180
+    locname = gmrc.location
 
-
-def eval_gmrc(args):
-    # create particle trajectory with desired particle and energy
-    plabel = "p+"
-    particle_altitude = 100.
-
-    # number of points for azimuth / zenith grid
-    ngrid_azimuth = 70
-    ngrid_zenith = 70
-
-    # change initial parameters if debug mode is set
-    if args.debug_mode:
-        args.iter_num = 10
-        args.show_plot = True
-
-    if args.eval_all:
-        for locname in list(location_dict.keys()):
-            # evaluate rigidity cutoffs at the location for
-            # the specified particle
-            gmrc = GMRC(location=locname,
-                        iter_num=args.iter_num,
-                        particle_altitude=particle_altitude,
-                        bfield_type=args.bfield_type,
-                        particle_type=plabel)
-
-            gmrc.evaluate()
-
-            # create a debugger / checker as a scatter plot
-            # of the dataset
-            # if args.debug_mode:
-            plot_gmrc_scatter(gmrc.data_dict,
-                              locname,
-                              plabel,
-                              bfield_type=args.bfield_type,
-                              iter_num=args.iter_num,
-                              show_plot=args.show_plot)
-
-            interpd_gmrc_data = gmrc.interpolate_results(
-                ngrid_azimuth=ngrid_azimuth,
-                ngrid_zenith=ngrid_zenith,
-            )
-
-            plot_gmrc_heatmap(interpd_gmrc_data,
-                              gmrc.rigidity_list,
-                              locname=locname,
-                              plabel=plabel,
-                              bfield_type=args.bfield_type,
-                              show_plot=args.show_plot)
-
+    if args.eval_mode == "batch":
+        gmrc.evaluate_batch(dt=args.dt, max_time=args.max_time)
     else:
-        # evaluate rigidity cutoffs at the location for
-        # the specified particle
-        gmrc = GMRC(location=args.locname,
-                    iter_num=args.iter_num,
-                    particle_altitude=particle_altitude,
-                    bfield_type=args.bfield_type,
-                    particle_type=plabel)
+        gmrc.evaluate(dt=args.dt, max_time=args.max_time)
 
-        gmrc.evaluate()
+    print("Plotting...")
 
-        # create a debugger / checker as a scatter plot
-        # of the dataset
-        # if args.debug_mode:
-        plot_gmrc_scatter(gmrc.data_dict,
-                          args.locname,
-                          plabel,
-                          bfield_type=args.bfield_type,
-                          iter_num=args.iter_num,
-                          show_plot=args.show_plot)
-
-        interpd_gmrc_data = gmrc.interpolate_results(
+    if args.eval_mode == "batch":
+        gmrc_grids = gmrc.bin_results(
+            nbins_azimuth=ngrid_azimuth,
+            nbins_zenith=ngrid_zenith,
+        )
+    else:
+        plot_gmrc_scatter(
+            gmrc.data_dict,
+            locname,
+            plabel,
+            bfield_type=args.bfield_type,
+            iter_num=args.iter_num,
+            show_plot=args.show_plot,
+        )
+        gmrc_grids = gmrc.interpolate_results(
             ngrid_azimuth=ngrid_azimuth,
             ngrid_zenith=ngrid_zenith,
         )
 
-        plot_gmrc_heatmap(interpd_gmrc_data,
-                          gmrc.rigidity_list,
-                          locname=args.locname,
-                          plabel=plabel,
-                          bfield_type=args.bfield_type,
-                          show_plot=args.show_plot)
+    plot_gmrc_heatmap(
+        gmrc_grids,
+        gmrc.rigidity_list,
+        locname=locname,
+        plabel=plabel,
+        bfield_type=args.bfield_type,
+        show_plot=args.show_plot,
+    )
+
+    print("Done.")
+
+
+def eval_gmrc(args):
+    locations = list(location_dict.keys()) if args.eval_all else [args.location]
+
+    for locname in locations:
+        gmrc = GMRC(
+            location=locname,
+            iter_num=args.iter_num,
+            bfield_type=args.bfield_type,
+            particle_type=args.particle,
+            n_workers=args.n_workers,
+            solver=args.solver,
+            min_rigidity=0.5,
+            max_rigidity=80.0,
+        )
+        _run_gmrc(gmrc, args)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description=
-        'Evaluates the geomagnetic cutoff rigidities of some location for N iterations using a Monte-Carlo sampling scheme, and produces a heatmap for such geomagnetic cutoff rigidities.'
+        description=(
+            "Evaluate geomagnetic cutoff rigidities via Monte Carlo "
+            "and produce heatmap plots."
+        )
     )
-    parser.add_argument('-ln',
-                        '--locname',
-                        dest="locname",
-                        default="Kamioka",
-                        type=str,
-                        help="Detector location to evaluate GM cutoffs.")
-    parser.add_argument('-n',
-                        '--iter_num',
-                        dest="iter_num",
-                        default=10000,
-                        type=int,
-                        help="Number of iterations for Monte-Carlo.")
-    parser.add_argument('-bf',
-                        '--bfield',
-                        dest="bfield_type",
-                        default="igrf",
-                        type=str,
-                        help="The geomagnetic field model used.")
-    parser.add_argument('-a',
-                        '--all',
-                        dest="eval_all",
-                        action="store_true",
-                        help="Evaluate GM cutoffs for all locations.")
-    parser.add_argument('--show',
-                        dest="show_plot",
-                        action="store_true",
-                        help="Show the plot in an external display.")
     parser.add_argument(
-        '-d',
-        '--debug',
-        dest="debug_mode",
+        "--location",
+        default="Kamioka",
+        help="Detector location name (default: Kamioka).",
+    )
+    parser.add_argument(
+        "--particle",
+        default="p+",
+        choices=["p+", "p-", "e+", "e-"],
+        help="Particle label (default: p+).",
+    )
+    parser.add_argument(
+        "--iter-num",
+        dest="iter_num",
+        default=50000,
+        type=int,
+        help="Number of Monte Carlo iterations (default: 50000).",
+    )
+    parser.add_argument(
+        "--bfield-type",
+        dest="bfield_type",
+        default="igrf",
+        choices=["igrf", "dipole", "table"],
+        help="Magnetic field model (default: igrf).",
+    )
+    parser.add_argument(
+        "--solver",
+        default="rk4",
+        choices=["rk4", "boris", "rk45"],
+        help="Integration method: rk4 (default), boris, rk45 (adaptive).",
+    )
+    parser.add_argument(
+        "--dt",
+        type=float,
+        default=1e-5,
+        help="Integration step size in seconds (default: 1e-5).",
+    )
+    parser.add_argument(
+        "--max-time",
+        dest="max_time",
+        type=float,
+        default=1.0,
+        help="Maximum integration time in seconds (default: 1.0).",
+    )
+    parser.add_argument(
+        "--eval-mode",
+        dest="eval_mode",
+        default="batch",
+        choices=["batch", "legacy"],
+        help="Evaluation mode: batch (C++ MC loop, default) or legacy (Python loop).",
+    )
+    parser.add_argument(
+        "--n-workers",
+        dest="n_workers",
+        default=None,
+        type=int,
+        help="Number of parallel workers (default: all CPU cores).",
+    )
+    parser.add_argument(
+        "--all",
+        dest="eval_all",
         action="store_true",
-        help="Enable debug mode. Sets N = 10 and enable --show=True.")
-    # parser.add_argument('-c',
-    #                     '--clean',
-    #                     dest="clean_dict",
-    #                     action="store_true",
-    #                     help='Clean the dataset. ')
-
+        help="Evaluate GMRC for all pre-defined locations.",
+    )
+    parser.add_argument(
+        "--show-plot",
+        dest="show_plot",
+        action="store_true",
+        help="Show plots in an interactive window.",
+    )
     args = parser.parse_args()
     eval_gmrc(args)

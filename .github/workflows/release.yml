@@ -1,0 +1,138 @@
+name: Release
+
+on:
+  push:
+    branches: [master]
+  release:
+    types: [published]
+  schedule:
+    - cron: "0 1 * * 1"  # 01:00 UTC Monday (09:00 Taipei, UTC+8)
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-wheels:
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            cibw_archs: x86_64
+          - os: ubuntu-24.04-arm
+            cibw_archs: aarch64
+          - os: macos-latest
+            cibw_archs: arm64
+          - os: macos-26-intel
+            cibw_archs: x86_64
+          - os: windows-latest
+            cibw_archs: AMD64
+          - os: windows-11-arm
+            cibw_archs: ARM64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ contains(matrix.os, 'arm') && 'arm64' || 'x64' }}
+
+      - name: Skip Python 3.10 on Windows ARM64
+        if: matrix.os == 'windows-11-arm'
+        shell: bash
+        run: echo "CIBW_SKIP=cp310-* *-musllinux_*" >> "$GITHUB_ENV"
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v3.4.0
+        env:
+          CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"
+          CIBW_ARCHS: ${{ matrix.cibw_archs }}
+          CIBW_ENABLE: "cpython-prerelease"
+          CIBW_TEST_COMMAND: "pytest {project}/tests -vv --no-header"
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: ./wheelhouse/*.whl
+
+  build-sdist:
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install build tool
+        run: pip install build
+
+      - name: Build sdist
+        run: python -m build --sdist
+
+      - name: Install from sdist
+        run: pip install dist/*.tar.gz -Csetup-args=-Dnative_arch=false
+
+      - name: Install test dependencies
+        run: pip install pytest pytest-cov
+
+      - name: Run tests from sdist
+        run: pytest tests/ -vv --no-header --no-cov
+
+      - name: Upload sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  publish:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Download artifacts from latest successful build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RELEASE_SHA="${{ github.sha }}"
+
+          # Try to find a workflow run matching the release commit
+          RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/release.yml/runs?branch=master&status=success&event=push&per_page=100" \
+            --jq "[.workflow_runs[] | select(.head_sha == \"$RELEASE_SHA\")] | .[0].id // empty")
+
+          if [ -z "$RUN_ID" ]; then
+            echo "::warning::No build found for exact commit $RELEASE_SHA, using latest successful build"
+            RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/release.yml/runs?branch=master&status=success&event=push&per_page=1" \
+              --jq '.workflow_runs[0].id // empty')
+          fi
+
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::No successful build found on master"
+            exit 1
+          fi
+
+          echo "Downloading artifacts from workflow run $RUN_ID"
+          gh run download "$RUN_ID" -R "${{ github.repository }}" -D artifacts/
+
+          # Flatten: gh run download creates subdirectories per artifact name
+          mkdir -p dist
+          find artifacts/ -type f \( -name '*.whl' -o -name '*.tar.gz' \) -exec cp {} dist/ \;
+          echo "Packages to upload:"
+          ls -la dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          password: ${{ secrets.PYPI_API_KEY }}

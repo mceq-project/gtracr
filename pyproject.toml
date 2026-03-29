@@ -1,0 +1,52 @@
+[build-system]
+build-backend = 'mesonpy'
+requires = ['meson-python>=0.16', 'meson>=1.1', 'ninja', 'pybind11>=2.12']
+
+[project]
+name = 'gtracr'
+version = '1.0.0'
+description = 'A simulation that tracks cosmic rays from any location on Earth.'
+authors = [{name = 'Keito Watanabe', email = 'k.wat8973@gmail.com'}]
+license = {text = 'BSD 3-Clause License'}
+readme = 'README.md'
+requires-python = '>=3.10'
+dependencies = ['numpy', 'scipy', 'tqdm']
+
+[project.optional-dependencies]
+examples = ['matplotlib', 'plotly']
+dev = ['pytest', 'pytest-cov', 'ruff']
+
+[project.urls]
+Homepage = 'https://github.com/kwat0308/gtracr'
+
+[tool.pytest.ini_options]
+addopts = "--cov=gtracr --cov-report=term-missing --cov-config=.coveragerc"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP"]
+ignore = ["E501", "E741", "E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["gtracr"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.coverage.run]
+omit = [
+    "src/gtracr/plotting.py",
+    "src/gtracr/scripts/*",
+    "src/gtracr/version.py",
+    "src/gtracr/bfield/_utils.py",
+]
+
+[tool.cibuildwheel]
+skip = "*-musllinux_*"
+test-requires = ["pytest", "pytest-cov"]
+test-command = "pytest {project}/tests -vv --no-header --no-cov"
+config-settings = "setup-args=-Dnative_arch=false"

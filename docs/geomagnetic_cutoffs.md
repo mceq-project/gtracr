@@ -1,100 +1,106 @@
 # Geomagnetic Cutoff Rigidities
 
-One of the key features of this code is to evaluate the geomagnetic cutoff rigidities of a certain location on the globe.
+The `GMRC` class computes geomagnetic rigidity cutoffs — the minimum
+rigidity a cosmic ray must have to reach Earth from a given direction at a
+given location.
 
-The geomagnetic cutoff rigidity for a given location on Earth is defined as the minimum rigidity in which a cosmic ray can enter Earth's atmosphere at a certain arrival direction. We distinguish those that can enter the Earth's atmosphere as an _allowed_ trajectory, and those which cannot as a _forbidden_ one.
+Cutoffs are determined via Monte Carlo: random (zenith, azimuth) directions
+are sampled, and for each direction the code scans rigidities from low to
+high until the trajectory escapes Earth's field.
 
-As the cutoff between an allowed and forbidden trajectory is (in most cases) smooth,[^1] we can construct clear cutoff rigidities at each arrival direction of the particle.
+## Two evaluation modes
 
-[^1]: At low enough rigidities and with lighter particles such smoothness may not apply (check [Smart & Shea](https://ui.adsabs.harvard.edu/link_gateway/2005AdSpR..36.2012S/doi:10.1016/j.asr.2004.09.015) for more details).
+### `evaluate()` — Python-orchestrated
 
-## Evaluating the Geomagnetic Cutoff Rigidities
+Supports all field types (`"igrf"`, `"dipole"`, `"table"`). Uses
+`ProcessPoolExecutor` for `igrf`/`dipole` and `ThreadPoolExecutor` for
+`table` (GIL released in C++).
 
-The evaluation of the geomagnetic cutoff rigidities can be done in the following steps.
-
-### 1. Initialize the Geomagnetic Cutoff Rigidity Evaluator
-
-We first have to initialize the container that performs the evaluation of the geomagntic cutoff rigidities and stores the relavent cutoff rigidities.
-
-We first import the module as such:
-
-```
-from gtracr.geomagnetic_cutoffs import GMRC
-```
-
-The container can then be initialized by providing the name of the location.
-
-For example, if we want to initialize the evaluator to determine the cutoff rigidities for the Kamioka site, we write the following code block:
-
-```
-gmrc = GMRC("Kamioka")
-```
-
-One can additionally add some optional arguments for the evaluator:
-
-- `iter_num (int)` : number of iterations for Monte Carlo sampling (default:10000)
-- `particle_altitude (float)` : altitude in which cosmic ray collides with atmosphere (default:100)
-- `bfield_type (str)` : type of magnetic field model to use (default: igrf)
-
-Note that only the name of the location is required to initialize the evaluator.
-
-### 2. Evaluate the cutoff rigidities
-
-We then evaluate the geomagnetic cutoffs by using a Monte-Carlo sampling scheme. This can be done by using the following code:
-
-```
-gmrc.evaluate()
-```
-
-Some additional configurations can be set as follows:
-
-- `dt` : the step size of the integration, i.e. the time difference between each point in the trajectory (default : 1e-5s)
-- `max_time` : the maximum time in which the integration occurs. No trajectory will be evaluated longer than this time (default : 1s).
-
-### 3. Plot the results
-
-We can then plot the results as a heatmap using the in-built heatmap plotting function. In order to plot this first, however, we need to interpolate the 2-D results, which is done by `scipy.interpolate.griddata`.
-
-We can perform this as such:
-
-```
-interpd_gmrc_data = gmrc.interpolate_results()
-```
-
-We can then plot our results on the heatmap:
-
-```
-from gtracr.plotting import plot_gmrc_heatmap
-
-plot_gmrc_heatmap(interpd_gmrc_data,
-                        gmrc.rigidity_list,
-                        locname=gmrc.location,
-                        plabel=gmrc.plabel)
-```
-
-### Example
-
-The following example evaluates the geomagnetic cutoff rigidities and returns a 2-D heatmap of
-the interpolated results.
-
-```
+```python
 from gtracr.geomagnetic_cutoffs import GMRC
 
-# initialize geomagnetic rigidity cutoff evaluator at Kamioka
-# with 10000 iterations
-gmrc = GMRC("Kamioka")
+gmrc = GMRC(location="Kamioka", iter_num=10000, bfield_type="igrf",
+            solver="rk4", n_workers=8)
+gmrc.evaluate(dt=1e-5, max_time=1.)
+```
 
-# evaluate with default stepsize and max_time
-gmrc.evaluate()
+### `evaluate_batch()` — C++ batch mode (fastest)
 
-# interpolate results
-interpd_gmrc_data = gmrc.interpolate_results()
+The entire MC loop — RNG, coordinate transforms, rigidity scanning, and
+threading — runs in a single C++ call. Requires `bfield_type="table"`.
+Achieves ~35k trajectories/second with `solver="rk45"`.
 
-# create heatmap and save as png
-from gtracr.plotting import plot_gmrc_heatmap
+```python
+gmrc = GMRC(location="Kamioka", iter_num=10000,
+            bfield_type="table", solver="rk45")
+gmrc.evaluate_batch(dt=1e-5, max_time=1.)
+```
 
-plot_gmrc_heatmap(interpd_gmrc_data,
-                        gmrc.rigidity_list,
-                        locname=gmrc.location,
-                        plabel=gmrc.plabel)
+## Getting results
+
+### `bin_results()` (recommended)
+
+Bins MC samples into a regular (azimuth, zenith) grid. Fast and appropriate
+for large sample counts.
+
+```python
+az_centres, zen_centres, cutoff_grid = gmrc.bin_results(
+    nbins_azimuth=72, nbins_zenith=36
+)
+# cutoff_grid shape: (36, 72), NaN where no samples fell
+```
+
+### `interpolate_results()` (legacy)
+
+Scattered interpolation via `scipy.interpolate.griddata`.
+
+```python
+az_grid, zen_grid, cutoff_grid = gmrc.interpolate_results()
+```
+
+## Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `location` | `"Kamioka"` | Predefined detector location. |
+| `iter_num` | `10000` | Number of MC samples. |
+| `bfield_type` | `"igrf"` | Field model: `"igrf"`, `"dipole"`, or `"table"`. |
+| `particle_type` | `"p+"` | Particle label. |
+| `date` | today | IGRF date (`"yyyy-mm-dd"`). |
+| `min_rigidity` | `5.` | Lower bound of rigidity scan (GV). |
+| `max_rigidity` | `55.` | Upper bound of rigidity scan (GV). |
+| `delta_rigidity` | `1.` | Rigidity step size (GV). |
+| `n_workers` | all CPUs | Number of parallel workers. |
+| `solver` | `"rk4"` | Integrator: `"rk4"`, `"boris"`, or `"rk45"`. |
+| `atol` | `1e-3` | Absolute tolerance (RK45). |
+| `rtol` | `1e-6` | Relative tolerance (RK45). |
+
+## Solver recommendation
+
+For GMRC evaluation, **`solver="rk45"`** with **`bfield_type="table"`** is
+the fastest combination. The adaptive stepper takes ~100x fewer steps than
+fixed-step RK4 for allowed trajectories, and the tabulated field eliminates
+spherical harmonic computation.
+
+## Complete example
+
+```python
+from gtracr.geomagnetic_cutoffs import GMRC
+
+# Fast batch evaluation
+gmrc = GMRC(
+    location="Kamioka",
+    iter_num=10000,
+    bfield_type="table",
+    solver="rk45",
+    min_rigidity=5.,
+    max_rigidity=55.,
+    delta_rigidity=1.,
+)
+gmrc.evaluate_batch(dt=1e-5, max_time=1.)
+
+# Get gridded results
+az, zen, cutoffs = gmrc.bin_results()
+print(f"Grid shape: {cutoffs.shape}")
+print(f"Mean cutoff: {cutoffs[~np.isnan(cutoffs)].mean():.1f} GV")
 ```

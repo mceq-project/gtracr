@@ -1,0 +1,9 @@
+BasedOnStyle: Google
+ColumnLimit: 100
+IndentWidth: 2
+Standard: c++14
+DerivePointerAlignment: false
+PointerAlignment: Left
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: true

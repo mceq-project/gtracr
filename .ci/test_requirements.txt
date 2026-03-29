@@ -1,7 +1,0 @@
-numpy
-scipy
-datetime
-tqdm
-pytest
-pytest-cov
-pytest-benchmark

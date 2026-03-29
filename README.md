@@ -1,34 +1,58 @@
-# gtracr - A **G**PU-accelerated **Tra**cking simulation for **C**osmic **R**ays
+# gtracr
 
-**gtracr** is a 3-D simulation package that simulates the trajectories of cosmic rays that arrive at a certain location on any location around the globe. The package uses the [IGRF (International Geomagnetic Reference Field) model](https://www.ngdc.noaa.gov/IAGA/vmod/igrf.html) as the Earth's magnetic field and simulate trajectories using a 4th-order Runge Kutta numerical integration method.
+![CI](https://github.com/kwat0308/gtracr/actions/workflows/ci.yml/badge.svg)
 
-The main components as well as the user interface of the package is written in Python, so using this package is straighforward with minimal steps for evaluation of a trajectory. The core of the package (that is, the evaluation of the geomagnetic field and the numerical integration) is written in C++, however, and as such each trajectory is optimized to perform evaluations at approximately 2000 iterations per second.
+**gtracr** simulates cosmic ray trajectories through Earth's geomagnetic field
+and computes geomagnetic rigidity cutoffs (GMRC).
 
-The code can further produce geomagnetic cutoff rigidities that either validates or invalidates a cosmic ray based on its trajectory, which is a key feature necessary to distinguish between allowed and forbidden trajectories.
+## Features
 
-<!--- _Note_: The current version does **_not_** support GPU parallelization. This will be done in future versions, check the [CHANGELOG](CHANGELOG) for more details.--->
+- **IGRF-13 magnetic field** — full degree-13 spherical harmonic model, plus a
+  fast 3D tabulated lookup (~7x speedup)
+- **Three solvers** — RK4, Boris pusher (~30% faster), and adaptive RK45
+  (~100x fewer steps for escaping trajectories)
+- **C++ batch mode** — entire GMRC Monte Carlo loop in C++ with std::thread
+  parallelism (~35k trajectories/s)
+- **10 predefined locations** — Kamioka, IceCube, SNOLAB, and more
 
-## Dependencies
+## Installation
 
-- Python 3 and above
-- NumPy
-- SciPy
-- datetime (for obtaining the current date)
-- tqdm
+Requires Python >= 3.10, a C++14 compiler, meson >= 1.1, and ninja.
 
-All such dependencies will be installed with the package.
+```bash
+git clone https://github.com/kwat0308/gtracr.git
+cd gtracr
+git submodule update --init
+pip install -e . --no-build-isolation
+```
 
-### Optional requirements
+## Quickstart
 
-These packages are required to observe plots and test different trajectory cases:
+```python
+from gtracr.trajectory import Trajectory
 
-- `matplotlib, plotly` for plots
-- `pytest, pytest-benchmark` for testing
+traj = Trajectory(
+    zenith_angle=45., azimuth_angle=0., rigidity=20.,
+    location_name="Kamioka", bfield_type="igrf",
+)
+data = traj.get_trajectory(get_data=True)
+print(traj.particle_escaped)  # True = allowed trajectory
+```
+
+```python
+from gtracr.geomagnetic_cutoffs import GMRC
+
+gmrc = GMRC(location="Kamioka", iter_num=10000,
+            bfield_type="table", solver="rk45")
+gmrc.evaluate_batch(dt=1e-5, max_time=1.)
+az, zen, cutoffs = gmrc.bin_results()
+```
 
 ## Documentation
 
-Check out the [documentation](https://kwat0308.github.io/gtracr/) for more details on installing the package as well as instructions to start using this package with detailed examples.
+See the [full documentation](https://kwat0308.github.io/gtracr/) for detailed
+guides on trajectories, cutoff maps, solvers, and architecture.
 
-## Copyright and License
+## License
 
-This project is under the BSD 3-Clause License. See [LICENSE](LICENSE) for more details.
+BSD 3-Clause. See [LICENSE](LICENSE) for details.

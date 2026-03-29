@@ -1,18 +1,19 @@
-site_name: gtracr - GPU-accelerated Tracking simulation for Cosmic Ray Trajectories 
-site_url : https://gtracr.readthedocs.io
-site_author : Keito Watanabe
-repo_url : https://github.com/kwat0308/gtracr
+site_name: gtracr — Cosmic Ray Trajectory Simulation
+site_url: https://kwat0308.github.io/gtracr/
+site_author: Keito Watanabe
+repo_url: https://github.com/kwat0308/gtracr
 nav:
-    - Home: 'index.md'
-    - Background : 'background.md'
-    - Evaluating a Single Trajectory : 'trajectory.md'
-    - Geomagnetic Cutoff Rigidities : 'geomagnetic_cutoffs.md'
-    - Benchmarks : 'benchmarks.md'
-    - License : 'license.md'
+  - Home: 'index.md'
+  - Trajectories: 'trajectory.md'
+  - Cutoff Maps: 'geomagnetic_cutoffs.md'
+  - Solvers: 'solvers.md'
+  - Architecture: 'architecture.md'
+  - Benchmarks: 'benchmarks.md'
+  - License: 'license.md'
 theme:
-    name: readthedocs
-    highlightjs: true
-    hljs_languages:
-        - yaml
-        - rust
-
+  name: readthedocs
+  highlightjs: true
+  hljs_languages:
+    - yaml
+    - python
+    - bash

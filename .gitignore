@@ -8,3 +8,9 @@ build/
 *.pyd
 *.so
 site/
+.coverage
+src/gtracr/data/igrf_table_*.npy
+src/gtracr/data/igrf_table_*_params.npz
+.coverage.*
+tests/__pycache__
+gtracr_plots

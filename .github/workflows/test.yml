@@ -1,0 +1,119 @@
+name: Tests
+
+on:
+  pull_request:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Ruff check
+        run: ruff check src/gtracr/ examples/
+
+      - name: Ruff format check
+        run: ruff format --check src/gtracr/ examples/
+
+      - name: Install clang-format
+        run: pip install clang-format==19.1.7
+
+      - name: clang-format check
+        run: |
+          find src/cpp/src src/cpp/include src/cpp/gpu \
+            -name '*.cpp' -o -name '*.hpp' | \
+            xargs clang-format --dry-run --Werror
+
+  test:
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-26, macos-latest, macos-26-intel, windows-latest, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ contains(matrix.os, 'arm') && 'arm64' || 'x64' }}
+
+      - name: Install dependencies
+        run: pip install ninja meson-python pybind11 numpy scipy tqdm pytest-xdist pytest-cov
+
+      - name: Build and install
+        run: pip install . --no-build-isolation -Csetup-args=-Dnative_arch=false
+
+      - name: Run tests
+        run: pytest tests/ -vv --no-header
+
+  sdist:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install build tool
+        run: pip install build
+
+      - name: Build sdist
+        run: python -m build --sdist
+
+      - name: Install from sdist
+        run: pip install dist/*.tar.gz -Csetup-args=-Dnative_arch=false
+
+      - name: Install test dependencies
+        run: pip install pytest pytest-cov
+
+      - name: Run tests
+        run: pytest tests/ -vv --no-header --no-cov
+
+  cibw-test:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            cibw_archs: x86_64
+          - os: macos-latest
+            cibw_archs: arm64
+          - os: windows-latest
+            cibw_archs: AMD64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v3.4.0
+        env:
+          CIBW_BUILD: "cp313-*"
+          CIBW_ARCHS: ${{ matrix.cibw_archs }}

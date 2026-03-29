@@ -1,0 +1,6 @@
+[run]
+omit =
+    src/gtracr/plotting.py
+    src/gtracr/scripts/*
+    src/gtracr/version.py
+    src/gtracr/bfield/_utils.py

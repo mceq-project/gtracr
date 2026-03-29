@@ -1,0 +1,2 @@
+option('native_arch', type: 'boolean', value: true,
+       description: 'Pass -march=native (disable in CI)')
