@@ -4,7 +4,7 @@ requires = ['meson-python>=0.16', 'meson>=1.1', 'ninja', 'pybind11>=2.12']
 
 [project]
 name = 'gtracr'
-version = '1.0.0'
+version = '2.0.0'
 description = 'A simulation that tracks cosmic rays from any location on Earth.'
 authors = [{name = 'Keito Watanabe', email = 'k.wat8973@gmail.com'}]
 license = {text = 'BSD 3-Clause License'}
@@ -41,7 +41,6 @@ quote-style = "double"
 omit = [
     "src/gtracr/plotting.py",
     "src/gtracr/scripts/*",
-    "src/gtracr/version.py",
     "src/gtracr/bfield/_utils.py",
 ]
 

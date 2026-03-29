@@ -29,6 +29,11 @@ pip install -e . --no-build-isolation
 
 ## Quickstart
 
+```python
+import gtracr
+print(gtracr.__version__)  # e.g. "2.0.0"
+```
+
 ### Single trajectory
 
 ```python

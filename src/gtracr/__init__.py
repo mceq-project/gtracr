@@ -13,6 +13,8 @@ GMRC : Geomagnetic rigidity cutoff map evaluation.
 
 from gtracr.geomagnetic_cutoffs import GMRC
 from gtracr.trajectory import Trajectory
-from gtracr.version import __version__
+from importlib.metadata import version
+
+__version__ = version("gtracr")
 
 __all__ = ["Trajectory", "GMRC", "__version__"]

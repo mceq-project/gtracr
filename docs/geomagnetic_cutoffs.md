@@ -27,14 +27,22 @@ gmrc.evaluate(dt=1e-5, max_time=1.)
 ### `evaluate_batch()` — C++ batch mode (fastest)
 
 The entire MC loop — RNG, coordinate transforms, rigidity scanning, and
-threading — runs in a single C++ call. Requires `bfield_type="table"`.
-Achieves ~35k trajectories/second with `solver="rk45"`.
+threading — runs in a single C++ call via `BatchGMRC`. Requires
+`bfield_type="table"`. Achieves ~35k trajectories/second with `solver="rk45"`.
 
 ```python
 gmrc = GMRC(location="Kamioka", iter_num=10000,
             bfield_type="table", solver="rk45")
-gmrc.evaluate_batch(dt=1e-5, max_time=1.)
+gmrc.evaluate_batch(dt=1e-5, max_time=1., base_seed=42)
 ```
+
+Pass `base_seed` for reproducible results. If omitted, a random seed is
+chosen at runtime.
+
+**Safety limit**: the C++ loop retries failed directions up to
+`30 × iter_num` total attempts. If this limit is reached before
+`iter_num` successful samples are collected, a `UserWarning` is raised and
+`bin_results()` / `interpolate_results()` will have sparser coverage.
 
 ## Getting results
 
@@ -60,6 +68,8 @@ az_grid, zen_grid, cutoff_grid = gmrc.interpolate_results()
 
 ## Parameters
 
+### `GMRC` constructor
+
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `location` | `"Kamioka"` | Predefined detector location. |
@@ -70,10 +80,18 @@ az_grid, zen_grid, cutoff_grid = gmrc.interpolate_results()
 | `min_rigidity` | `5.` | Lower bound of rigidity scan (GV). |
 | `max_rigidity` | `55.` | Upper bound of rigidity scan (GV). |
 | `delta_rigidity` | `1.` | Rigidity step size (GV). |
-| `n_workers` | all CPUs | Number of parallel workers. |
+| `n_workers` | physical CPUs | Number of parallel workers. |
 | `solver` | `"rk4"` | Integrator: `"rk4"`, `"boris"`, or `"rk45"`. |
 | `atol` | `1e-3` | Absolute tolerance (RK45). |
 | `rtol` | `1e-6` | Relative tolerance (RK45). |
+
+### `evaluate_batch()` parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `dt` | `1e-5` | Time step in seconds. |
+| `max_time` | `1.` | Maximum integration time per trajectory (seconds). |
+| `base_seed` | `None` | Integer RNG seed for reproducibility. Random if `None`. |
 
 ## Solver recommendation
 
