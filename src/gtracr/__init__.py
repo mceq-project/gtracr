@@ -11,9 +11,10 @@ Trajectory : Single cosmic ray trajectory evaluation.
 GMRC : Geomagnetic rigidity cutoff map evaluation.
 """
 
+from importlib.metadata import version
+
 from gtracr.geomagnetic_cutoffs import GMRC
 from gtracr.trajectory import Trajectory
-from importlib.metadata import version
 
 __version__ = version("gtracr")
 

@@ -4,7 +4,6 @@ and produce scatter and heatmap plots.
 """
 
 import argparse
-import pickle
 from pathlib import Path
 
 from gtracr.geomagnetic_cutoffs import GMRC
