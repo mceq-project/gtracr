@@ -50,7 +50,7 @@ az, zen, cutoffs = gmrc.bin_results()
 
 ## Documentation
 
-See the [full documentation](https://kwat0308.github.io/gtracr/) for detailed
+See the [full documentation](https://mceq-project.github.io/gtracr/) for detailed
 guides on trajectories, cutoff maps, solvers, and architecture.
 
 ## License
