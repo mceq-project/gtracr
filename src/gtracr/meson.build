@@ -9,7 +9,6 @@ py.install_sources(
     'plotting.py',
     'trajectory.py',
     'utils.py',
-    'version.py',
   ],
   subdir: 'gtracr',
 )

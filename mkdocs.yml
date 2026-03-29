@@ -7,6 +7,7 @@ nav:
   - Trajectories: 'trajectory.md'
   - Cutoff Maps: 'geomagnetic_cutoffs.md'
   - Solvers: 'solvers.md'
+  - Magnetic Field Models: 'bfield.md'
   - Architecture: 'architecture.md'
   - Benchmarks: 'benchmarks.md'
   - License: 'license.md'

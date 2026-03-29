@@ -69,6 +69,7 @@ trajectory was allowed (`True`) or forbidden (`False`).
 | `dt` | `1e-5` | Time step in seconds. |
 | `max_time` | `1.` | Maximum integration time in seconds. |
 | `get_data` | `False` | Return trajectory data dictionary. |
+| `use_python` | `False` | Use the pure-Python fallback integrator instead of the C++ extension. Useful for debugging; slower. |
 
 ## Solver choice
 
