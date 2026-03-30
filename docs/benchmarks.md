@@ -23,15 +23,15 @@ dt=1e-5, max_time=1 s. Table pre-loaded once; numbers measure integration only.
 
 | Solver | B-field | Steps | Eval/s | Ratio to RK4+IGRF |
 |--------|---------|------:|-------:|:-----------------:|
-| RK4    | IGRF    | 9372  | 188    | 1.00×             |
-| Boris  | IGRF    | 9159  | 197    | 1.05×             |
-| RK45   | IGRF    | 56    | 1283   | 6.8×              |
-| RK4    | Dipole  | 11823 | 884    | 4.7×              |
-| Boris  | Dipole  | 11794 | 996    | 5.3×              |
-| RK45   | Dipole  | 39    | 92319  | 492×              |
-| RK4    | Table   | 9300  | 637    | 3.4×              |
-| Boris  | Table   | 9091  | 681    | 3.6×              |
-| RK45   | Table   | 55    | 1604   | 8.5×              |
+| RK4    | IGRF    | 9372  | 216    | 1.00×             |
+| Boris  | IGRF    | 9159  | 228    | 1.06×             |
+| RK45   | IGRF    | 56    | 5393   | 25×               |
+| RK4    | Dipole  | 11823 | 906    | 4.2×              |
+| Boris  | Dipole  | 11794 | 1047   | 4.8×              |
+| RK45   | Dipole  | 39    | 98156  | 454×              |
+| RK4    | Table   | 9300  | 1067   | 4.9×              |
+| Boris  | Table   | 9091  | 1339   | 6.2×              |
+| RK45   | Table   | 55    | 59446  | 275×              |
 
 ## Running benchmarks
 
