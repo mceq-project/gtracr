@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Keito Watanabe" /><link rel="canonical" href="https://kwat0308.github.io/gtracr/solvers/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Solvers - gtracr — Cosmic Ray Trajectory Simulation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Solvers";
+        var mkdocs_page_input_path = "solvers.md";
+        var mkdocs_page_url = "/gtracr/solvers/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/yaml.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/python.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/bash.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> gtracr — Cosmic Ray Trajectory Simulation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../trajectory/">Trajectories</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../geomagnetic_cutoffs/">Cutoff Maps</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Solvers</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#comparison">Comparison</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#when-to-use-each-solver">When to use each solver</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#single-trajectory-visualization">Single trajectory visualization</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#gmrc-cutoff-scanning">GMRC cutoff scanning</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#high-precision-work">High-precision work</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#tolerance-tuning-rk45">Tolerance tuning (RK45)</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#benchmarking-solvers">Benchmarking solvers</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../bfield/">Magnetic Field Models</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../architecture/">Architecture</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../benchmarks/">Benchmarks</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../license/">License</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">gtracr — Cosmic Ray Trajectory Simulation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Solvers</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/kwat0308/gtracr/edit/master/docs/solvers.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="solvers">Solvers</h1>
+<p>gtracr provides three integration methods for the relativistic Lorentz force
+equation, all implemented in C++.</p>
+<h2 id="comparison">Comparison</h2>
+<table>
+<thead>
+<tr>
+<th>Solver</th>
+<th><code>solver=</code></th>
+<th>B-field evals/step</th>
+<th>Step size</th>
+<th>Key properties</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Frozen-field RK4</td>
+<td><code>"rk4"</code></td>
+<td>1</td>
+<td>Fixed</td>
+<td>Default; O(h^4) with frozen-field O(h^2) error</td>
+</tr>
+<tr>
+<td>Boris pusher</td>
+<td><code>"boris"</code></td>
+<td>1</td>
+<td>Fixed</td>
+<td>Symplectic; ~30% faster than RK4; 2x better momentum conservation</td>
+</tr>
+<tr>
+<td>Adaptive RK45</td>
+<td><code>"rk45"</code></td>
+<td>~6 (FSAL)</td>
+<td>Adaptive</td>
+<td>Dormand-Prince; uses <code>atol</code>/<code>rtol</code>; ~100x fewer steps for escaping trajectories</td>
+</tr>
+</tbody>
+</table>
+<h2 id="when-to-use-each-solver">When to use each solver</h2>
+<h3 id="single-trajectory-visualization">Single trajectory visualization</h3>
+<p>Use <strong><code>"rk4"</code></strong> or <strong><code>"boris"</code></strong> with <code>bfield_type="igrf"</code>:</p>
+<ul>
+<li>Fixed time steps produce regularly spaced output points, good for plotting.</li>
+<li>Boris is faster and conserves energy better, but outputs Cartesian
+  internally (converted back to spherical).</li>
+<li>RK4 is the safe default.</li>
+</ul>
+<h3 id="gmrc-cutoff-scanning">GMRC cutoff scanning</h3>
+<p>Use <strong><code>"rk45"</code></strong> with <code>bfield_type="table"</code>:</p>
+<ul>
+<li>Adaptive stepping takes far fewer steps for escaping trajectories.</li>
+<li>Combined with the tabulated IGRF (~7x faster field evaluation), this gives
+  the highest throughput (~35k trajectories/s in batch mode).</li>
+<li>Default tolerances (<code>atol=1e-3</code>, <code>rtol=1e-6</code>) work well for cutoff
+  determination.</li>
+</ul>
+<h3 id="high-precision-work">High-precision work</h3>
+<p>For position accuracy comparable to RK4 at <code>dt=1e-5</code>, tighten the RK45
+tolerances:</p>
+<pre><code class="language-python">traj = Trajectory(..., solver=&quot;rk45&quot;, atol=1e-6, rtol=1e-6)
+</code></pre>
+<h2 id="tolerance-tuning-rk45">Tolerance tuning (RK45)</h2>
+<table>
+<thead>
+<tr>
+<th><code>atol</code></th>
+<th><code>rtol</code></th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>1e-3</code></td>
+<td><code>1e-6</code></td>
+<td>Default — good for GMRC cutoff determination</td>
+</tr>
+<tr>
+<td><code>1e-6</code></td>
+<td><code>1e-6</code></td>
+<td>High precision — position accuracy matching RK4 at dt=1e-5</td>
+</tr>
+<tr>
+<td><code>1e-8</code></td>
+<td><code>1e-8</code></td>
+<td>Reference solutions for validation</td>
+</tr>
+</tbody>
+</table>
+<h2 id="benchmarking-solvers">Benchmarking solvers</h2>
+<p>Run the solver comparison script to compare accuracy and performance:</p>
+<pre><code class="language-bash">python examples/eval_solver_comparison.py --n-perf 100
+</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../geomagnetic_cutoffs/" class="btn btn-neutral float-left" title="Cutoff Maps"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../bfield/" class="btn btn-neutral float-right" title="Magnetic Field Models">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/kwat0308/gtracr" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../geomagnetic_cutoffs/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../bfield/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

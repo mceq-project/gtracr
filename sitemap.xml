@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://kwat0308.github.io/gtracr/</loc>
+         <lastmod>2026-03-30</lastmod>
+    </url>
+    <url>
+         <loc>https://kwat0308.github.io/gtracr/architecture/</loc>
+         <lastmod>2026-03-30</lastmod>
+    </url>
+    <url>
+         <loc>https://kwat0308.github.io/gtracr/benchmarks/</loc>
+         <lastmod>2026-03-30</lastmod>
+    </url>
+    <url>
+         <loc>https://kwat0308.github.io/gtracr/bfield/</loc>
+         <lastmod>2026-03-30</lastmod>
+    </url>
+    <url>
+         <loc>https://kwat0308.github.io/gtracr/geomagnetic_cutoffs/</loc>
+         <lastmod>2026-03-30</lastmod>
+    </url>
+    <url>
+         <loc>https://kwat0308.github.io/gtracr/license/</loc>
+         <lastmod>2026-03-30</lastmod>
+    </url>
+    <url>
+         <loc>https://kwat0308.github.io/gtracr/solvers/</loc>
+         <lastmod>2026-03-30</lastmod>
+    </url>
+    <url>
+         <loc>https://kwat0308.github.io/gtracr/trajectory/</loc>
+         <lastmod>2026-03-30</lastmod>
+    </url>
+</urlset>
