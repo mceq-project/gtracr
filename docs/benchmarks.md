@@ -18,13 +18,20 @@ The batch mode reports this exactly; Python modes are estimated from the
 
 ## Solver performance
 
-| Solver | B-field | Relative speed | Notes |
-|--------|---------|---------------|-------|
-| RK4 | IGRF | 1× (baseline) | Fixed step, dt=1e-5 |
-| Boris | IGRF | ~1.3× | Fixed step, dt=1e-5 |
-| RK45 | IGRF | ~5–50× | Adaptive; depends on trajectory length |
-| RK4 | Table | ~7× | Tabulated field eliminates SH recursion |
-| RK45 | Table | ~50–500× | Best combination for batch work |
+Single forbidden trajectory at Kamioka, zenith=45°, azimuth=90°, rigidity=7 GV,
+dt=1e-5, max_time=1 s. Table pre-loaded once; numbers measure integration only.
+
+| Solver | B-field | Steps | Eval/s | Ratio to RK4+IGRF |
+|--------|---------|------:|-------:|:-----------------:|
+| RK4    | IGRF    | 9372  | 188    | 1.00×             |
+| Boris  | IGRF    | 9159  | 197    | 1.05×             |
+| RK45   | IGRF    | 56    | 1283   | 6.8×              |
+| RK4    | Dipole  | 11823 | 884    | 4.7×              |
+| Boris  | Dipole  | 11794 | 996    | 5.3×              |
+| RK45   | Dipole  | 39    | 92319  | 492×              |
+| RK4    | Table   | 9300  | 637    | 3.4×              |
+| Boris  | Table   | 9091  | 681    | 3.6×              |
+| RK45   | Table   | 55    | 1604   | 8.5×              |
 
 ## Running benchmarks
 

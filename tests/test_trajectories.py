@@ -84,7 +84,7 @@ def test_trajectories_igrf():
 
     expected_times = [
         1e-05,
-        0.022769999999999242,
+        0.022779999999999242,
         0.1925500000000518,
         0.20332000000006256,
         0.21143000000007067,
@@ -120,6 +120,7 @@ def test_trajectories_igrf():
             rigidity=rig,
             energy=en,
             bfield_type="igrf",
+            date="2026-03-01",
         )
 
         traj.get_trajectory(dt=dt, max_time=max_time)
