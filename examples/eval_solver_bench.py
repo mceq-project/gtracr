@@ -2,8 +2,8 @@
 Benchmark individual trajectory solvers at fixed angle/rigidity.
 Table mode pre-loads the IGRF table once to measure integration time only.
 """
+
 import time
-from pathlib import Path
 
 import numpy as np
 
@@ -16,8 +16,11 @@ N_REPEAT = 500
 
 # Fixed trajectory parameters
 TRAJ_KWARGS = dict(
-    zenith_angle=45., azimuth_angle=90., rigidity=7.,
-    location_name="Kamioka", bfield_type="igrf",
+    zenith_angle=45.0,
+    azimuth_angle=90.0,
+    rigidity=7.0,
+    location_name="Kamioka",
+    bfield_type="igrf",
 )
 DT = 1e-5
 MAX_TIME = 1.0
@@ -26,10 +29,10 @@ MAX_STEP = int(np.ceil(MAX_TIME / DT))
 # Build initial sixvector from Trajectory (field type doesn't matter for coords)
 _ref = Trajectory(**TRAJ_KWARGS)
 CHARGE_SI = _ref.charge * ELEMENTARY_CHARGE
-MASS_SI   = _ref.mass * KG_PER_GEVC2
+MASS_SI = _ref.mass * KG_PER_GEVC2
 START_ALT = _ref.start_alt
-ESC_ALT   = _ref.esc_alt
-VEC0      = _ref.particle_sixvector
+ESC_ALT = _ref.esc_alt
+VEC0 = _ref.particle_sixvector
 
 IGRF_PARAMS = _ref.igrf_params  # (data_path, dec_date) tuple
 
@@ -38,8 +41,8 @@ print("Pre-loading IGRF table...")
 shared_table, _table_params = _get_or_generate_igrf_table(*IGRF_PARAMS)
 print("Ready.\n")
 
-solvers      = ["rk4",  "boris", "rk45"]
-bfields      = ["igrf", "dipole", "table"]
+solvers = ["rk4", "boris", "rk45"]
+bfields = ["igrf", "dipole", "table"]
 solver_chars = {"rk4": "r", "boris": "b", "rk45": "a"}
 bfield_chars = {"igrf": "i", "dipole": "d", "table": "t"}
 
@@ -53,12 +56,30 @@ for bfield in bfields:
 
         def make_tracer():
             if bfield == "table":
-                return CppTT(shared_table, _table_params,
-                             CHARGE_SI, MASS_SI, START_ALT, ESC_ALT,
-                             DT, MAX_STEP, IGRF_PARAMS, sc)
+                return CppTT(
+                    shared_table,
+                    _table_params,
+                    CHARGE_SI,
+                    MASS_SI,
+                    START_ALT,
+                    ESC_ALT,
+                    DT,
+                    MAX_STEP,
+                    IGRF_PARAMS,
+                    sc,
+                )
             else:
-                return CppTT(CHARGE_SI, MASS_SI, START_ALT, ESC_ALT,
-                             DT, MAX_STEP, bc, IGRF_PARAMS, sc)
+                return CppTT(
+                    CHARGE_SI,
+                    MASS_SI,
+                    START_ALT,
+                    ESC_ALT,
+                    DT,
+                    MAX_STEP,
+                    bc,
+                    IGRF_PARAMS,
+                    sc,
+                )
 
         # One run to get step count
         tt = make_tracer()
@@ -75,8 +96,14 @@ for bfield in bfields:
         elapsed = time.monotonic() - t0
         evals_per_s = N_REPEAT / elapsed
 
-        results[key] = {"n_steps": n_steps, "evals_per_s": evals_per_s, "escaped": escaped}
-        print(f"{key:20s}  steps={n_steps:6d}  escaped={escaped}  {evals_per_s:.1f} eval/s")
+        results[key] = {
+            "n_steps": n_steps,
+            "evals_per_s": evals_per_s,
+            "escaped": escaped,
+        }
+        print(
+            f"{key:20s}  steps={n_steps:6d}  escaped={escaped}  {evals_per_s:.1f} eval/s"
+        )
 
 baseline = results["rk4+igrf"]["evals_per_s"]
 print("\n--- Ratios to rk4+igrf ---")
