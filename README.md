@@ -1,6 +1,6 @@
 # gtracr
 
-![CI](https://github.com/kwat0308/gtracr/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/mceq-project/gtracr/actions/workflows/test.yml/badge.svg)
 
 **gtracr** simulates cosmic ray trajectories through Earth's geomagnetic field
 and computes geomagnetic rigidity cutoffs (GMRC).
@@ -17,13 +17,22 @@ and computes geomagnetic rigidity cutoffs (GMRC).
 
 ## Installation
 
-Requires Python >= 3.10, a C++14 compiler, meson >= 1.1, and ninja.
+### From PyPI (recommended)
+
+Pre-built wheels are available for Linux, macOS, and Windows (Python 3.10+):
 
 ```bash
-git clone https://github.com/kwat0308/gtracr.git
+pip install gtracr
+```
+
+### From source
+
+Requires a C++14 compiler, meson >= 1.1, and ninja.
+
+```bash
+git clone https://github.com/mceq-project/gtracr.git
 cd gtracr
-git submodule update --init
-pip install -e . --no-build-isolation
+pip install . --no-build-isolation
 ```
 
 ## Quickstart
