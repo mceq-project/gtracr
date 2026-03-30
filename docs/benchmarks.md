@@ -5,11 +5,11 @@ Measured on an Apple M3 Pro (12 threads) with `min_rigidity=1`, `max_rigidity=55
 
 ## GMRC throughput
 
-| Mode | Field | Solver | Samples | Successful traj/s | Total traj evaluated | Time |
-|------|-------|--------|---------|-------------------|----------------------|------|
-| `evaluate_batch()` (C++) | Table | RK45 | 100k | 48k/s | ~839k | 2.1s |
-| `evaluate()` (ThreadPool) | Table | RK45 | 10k | 11k/s | ~84k (est.) | 0.9s |
-| `evaluate()` (ProcessPool) | IGRF | RK4 | 1k | 67/s | ~8k (est.) | 14.9s |
+| Mode | Field | Solver | Samples | Successful traj/s | Total traj evaluated | Total traj/s | Time |
+|------|-------|--------|---------|-------------------|----------------------|--------------|------|
+| `evaluate_batch()` (C++) | Table | RK45 | 100k | 48k/s | ~839k | ~400k/s | 2.1s |
+| `evaluate()` (ThreadPool) | Table | RK45 | 10k | 11k/s | ~84k (est.) | ~93k/s | 0.9s |
+| `evaluate()` (ProcessPool) | IGRF | RK4 | 1k | 67/s | ~8k (est.) | ~540/s | 14.9s |
 
 "Total traj evaluated" is the number of individual trajectory integrations
 (each MC direction requires scanning multiple rigidities to find the cutoff).
