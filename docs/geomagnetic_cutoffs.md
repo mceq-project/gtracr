@@ -103,22 +103,37 @@ spherical harmonic computation.
 ## Complete example
 
 ```python
+import numpy as np
+import matplotlib.pyplot as plt
 from gtracr.geomagnetic_cutoffs import GMRC
 
-# Fast batch evaluation
+# 100k-sample batch evaluation at Kamioka
 gmrc = GMRC(
     location="Kamioka",
-    iter_num=10000,
+    iter_num=100000,
     bfield_type="table",
     solver="rk45",
-    min_rigidity=5.,
+    min_rigidity=1.,
     max_rigidity=55.,
-    delta_rigidity=1.,
+    delta_rigidity=0.5,
 )
 gmrc.evaluate_batch(dt=1e-5, max_time=1.)
 
-# Get gridded results
-az, zen, cutoffs = gmrc.bin_results()
+# Bin into a 72×36 azimuth/zenith grid
+az, zen, cutoffs = gmrc.bin_results(nbins_azimuth=72, nbins_zenith=36)
 print(f"Grid shape: {cutoffs.shape}")
-print(f"Mean cutoff: {cutoffs[~np.isnan(cutoffs)].mean():.1f} GV")
+print(f"Mean cutoff: {np.nanmean(cutoffs):.1f} GV")
+
+# Plot
+fig, ax = plt.subplots(figsize=(10, 5))
+im = ax.pcolormesh(az, zen, cutoffs, cmap="plasma", shading="auto", vmin=0)
+fig.colorbar(im, ax=ax, label="Rigidity cutoff (GV)")
+ax.set_xlabel("Azimuth (degrees)")
+ax.set_ylabel("Zenith angle (degrees)")
+ax.set_title("Geomagnetic rigidity cutoff map — Kamioka")
+ax.invert_yaxis()
+fig.tight_layout()
+fig.savefig("gmrc_kamioka.png", dpi=150)
 ```
+
+![Kamioka cutoff map](img/gmrc_kamioka.png)
