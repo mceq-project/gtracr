@@ -101,7 +101,21 @@ def test_trajectories_igrf():
     ]
 
     # Only forbidden trajectories have a stable final time across architectures.
-    escaped_flags = [False, False, True, True, True, True, True, True, True, True, False, False, True]
+    escaped_flags = [
+        False,
+        False,
+        True,
+        True,
+        True,
+        True,
+        True,
+        True,
+        True,
+        True,
+        False,
+        False,
+        True,
+    ]
 
     dt = 1e-5
     max_time = 1.0
