@@ -6,6 +6,8 @@ import numpy as np
 
 from gtracr.trajectory import Trajectory
 
+IGRF_DATE = "2026-03-01"
+
 # in the form :
 # (plabel, zenith, azimuth, particle_altitude,
 # latitude, longitude, detector_altitude, rigidity, kinetic energy)
@@ -120,7 +122,7 @@ def test_trajectories_igrf():
             rigidity=rig,
             energy=en,
             bfield_type="igrf",
-            date="2026-03-01",
+            date=IGRF_DATE,
         )
 
         traj.get_trajectory(dt=dt, max_time=max_time)
@@ -172,6 +174,7 @@ def test_trajectories_stepsize():
             rigidity=rig,
             energy=en,
             bfield_type="igrf",
+            date=IGRF_DATE,
         )
 
         traj.get_trajectory(dt=dt, max_time=max_time)
@@ -225,6 +228,7 @@ def test_trajectories_maxtimes():
             rigidity=rig,
             energy=en,
             bfield_type="igrf",
+            date=IGRF_DATE,
         )
 
         traj.get_trajectory(dt=dt, max_time=max_time)
