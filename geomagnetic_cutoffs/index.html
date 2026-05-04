@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Keito Watanabe" /><link rel="canonical" href="https://kwat0308.github.io/gtracr/geomagnetic_cutoffs/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Cutoff Maps - gtracr — Cosmic Ray Trajectory Simulation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Cutoff Maps";
+        var mkdocs_page_input_path = "geomagnetic_cutoffs.md";
+        var mkdocs_page_url = "/gtracr/geomagnetic_cutoffs/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/yaml.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/python.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/bash.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> gtracr — Cosmic Ray Trajectory Simulation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../trajectory/">Trajectories</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Cutoff Maps</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#two-evaluation-modes">Two evaluation modes</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#evaluate-python-orchestrated">evaluate() — Python-orchestrated</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#evaluate_batch-c-batch-mode-fastest">evaluate_batch() — C++ batch mode (fastest)</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#getting-results">Getting results</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#bin_results-recommended">bin_results() (recommended)</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#interpolate_results-legacy">interpolate_results() (legacy)</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#parameters">Parameters</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#gmrc-constructor">GMRC constructor</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#evaluate_batch-parameters">evaluate_batch() parameters</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#solver-recommendation">Solver recommendation</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#complete-example">Complete example</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../solvers/">Solvers</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../bfield/">Magnetic Field Models</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../architecture/">Architecture</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../benchmarks/">Benchmarks</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../license/">License</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">gtracr — Cosmic Ray Trajectory Simulation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Cutoff Maps</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/kwat0308/gtracr/edit/master/docs/geomagnetic_cutoffs.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="geomagnetic-cutoff-rigidities">Geomagnetic Cutoff Rigidities</h1>
+<p>The <code>GMRC</code> class computes geomagnetic rigidity cutoffs — the minimum
+rigidity a cosmic ray must have to reach Earth from a given direction at a
+given location.</p>
+<p>Cutoffs are determined via Monte Carlo: random (zenith, azimuth) directions
+are sampled, and for each direction the code scans rigidities from low to
+high until the trajectory escapes Earth's field.</p>
+<h2 id="two-evaluation-modes">Two evaluation modes</h2>
+<h3 id="evaluate-python-orchestrated"><code>evaluate()</code> — Python-orchestrated</h3>
+<p>Supports all field types (<code>"igrf"</code>, <code>"dipole"</code>, <code>"table"</code>). Uses
+<code>ProcessPoolExecutor</code> for <code>igrf</code>/<code>dipole</code> and <code>ThreadPoolExecutor</code> for
+<code>table</code> (GIL released in C++).</p>
+<pre><code class="language-python">from gtracr.geomagnetic_cutoffs import GMRC
+
+gmrc = GMRC(location=&quot;Kamioka&quot;, iter_num=10000, bfield_type=&quot;igrf&quot;,
+            solver=&quot;rk4&quot;, n_workers=8)
+gmrc.evaluate(dt=1e-5, max_time=1.)
+</code></pre>
+<h3 id="evaluate_batch-c-batch-mode-fastest"><code>evaluate_batch()</code> — C++ batch mode (fastest)</h3>
+<p>The entire MC loop — RNG, coordinate transforms, rigidity scanning, and
+threading — runs in a single C++ call via <code>BatchGMRC</code>. Requires
+<code>bfield_type="table"</code>. Achieves ~35k trajectories/second with <code>solver="rk45"</code>.</p>
+<pre><code class="language-python">gmrc = GMRC(location=&quot;Kamioka&quot;, iter_num=10000,
+            bfield_type=&quot;table&quot;, solver=&quot;rk45&quot;)
+gmrc.evaluate_batch(dt=1e-5, max_time=1., base_seed=42)
+</code></pre>
+<p>Pass <code>base_seed</code> for reproducible results. If omitted, a random seed is
+chosen at runtime.</p>
+<p><strong>Safety limit</strong>: the C++ loop retries failed directions up to
+<code>30 × iter_num</code> total attempts. If this limit is reached before
+<code>iter_num</code> successful samples are collected, a <code>UserWarning</code> is raised and
+<code>bin_results()</code> / <code>interpolate_results()</code> will have sparser coverage.</p>
+<h2 id="getting-results">Getting results</h2>
+<h3 id="bin_results-recommended"><code>bin_results()</code> (recommended)</h3>
+<p>Bins MC samples into a regular (azimuth, zenith) grid. Fast and appropriate
+for large sample counts.</p>
+<pre><code class="language-python">az_centres, zen_centres, cutoff_grid = gmrc.bin_results(
+    nbins_azimuth=72, nbins_zenith=36
+)
+# cutoff_grid shape: (36, 72), NaN where no samples fell
+</code></pre>
+<h3 id="interpolate_results-legacy"><code>interpolate_results()</code> (legacy)</h3>
+<p>Scattered interpolation via <code>scipy.interpolate.griddata</code>.</p>
+<pre><code class="language-python">az_grid, zen_grid, cutoff_grid = gmrc.interpolate_results()
+</code></pre>
+<h2 id="parameters">Parameters</h2>
+<h3 id="gmrc-constructor"><code>GMRC</code> constructor</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>location</code></td>
+<td><code>"Kamioka"</code></td>
+<td>Predefined detector location.</td>
+</tr>
+<tr>
+<td><code>iter_num</code></td>
+<td><code>10000</code></td>
+<td>Number of MC samples.</td>
+</tr>
+<tr>
+<td><code>bfield_type</code></td>
+<td><code>"igrf"</code></td>
+<td>Field model: <code>"igrf"</code>, <code>"dipole"</code>, or <code>"table"</code>.</td>
+</tr>
+<tr>
+<td><code>particle_type</code></td>
+<td><code>"p+"</code></td>
+<td>Particle label.</td>
+</tr>
+<tr>
+<td><code>date</code></td>
+<td>today</td>
+<td>IGRF date (<code>"yyyy-mm-dd"</code>).</td>
+</tr>
+<tr>
+<td><code>min_rigidity</code></td>
+<td><code>5.</code></td>
+<td>Lower bound of rigidity scan (GV).</td>
+</tr>
+<tr>
+<td><code>max_rigidity</code></td>
+<td><code>55.</code></td>
+<td>Upper bound of rigidity scan (GV).</td>
+</tr>
+<tr>
+<td><code>delta_rigidity</code></td>
+<td><code>1.</code></td>
+<td>Rigidity step size (GV).</td>
+</tr>
+<tr>
+<td><code>n_workers</code></td>
+<td>physical CPUs</td>
+<td>Number of parallel workers.</td>
+</tr>
+<tr>
+<td><code>solver</code></td>
+<td><code>"rk4"</code></td>
+<td>Integrator: <code>"rk4"</code>, <code>"boris"</code>, or <code>"rk45"</code>.</td>
+</tr>
+<tr>
+<td><code>atol</code></td>
+<td><code>1e-3</code></td>
+<td>Absolute tolerance (RK45).</td>
+</tr>
+<tr>
+<td><code>rtol</code></td>
+<td><code>1e-6</code></td>
+<td>Relative tolerance (RK45).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="evaluate_batch-parameters"><code>evaluate_batch()</code> parameters</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dt</code></td>
+<td><code>1e-5</code></td>
+<td>Time step in seconds.</td>
+</tr>
+<tr>
+<td><code>max_time</code></td>
+<td><code>1.</code></td>
+<td>Maximum integration time per trajectory (seconds).</td>
+</tr>
+<tr>
+<td><code>base_seed</code></td>
+<td><code>None</code></td>
+<td>Integer RNG seed for reproducibility. Random if <code>None</code>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="solver-recommendation">Solver recommendation</h2>
+<p>For GMRC evaluation, <strong><code>solver="rk45"</code></strong> with <strong><code>bfield_type="table"</code></strong> is
+the fastest combination. The adaptive stepper takes ~100x fewer steps than
+fixed-step RK4 for allowed trajectories, and the tabulated field eliminates
+spherical harmonic computation.</p>
+<h2 id="complete-example">Complete example</h2>
+<pre><code class="language-python">import numpy as np
+from gtracr.geomagnetic_cutoffs import GMRC
+from gtracr.plotting import plot_gmrc_heatmap
+
+gmrc = GMRC(
+    location=&quot;Kamioka&quot;,
+    iter_num=100000,
+    bfield_type=&quot;table&quot;,
+    solver=&quot;rk45&quot;,
+    min_rigidity=1.,
+    max_rigidity=55.,
+    delta_rigidity=0.5,
+)
+gmrc.evaluate_batch(dt=1e-5, max_time=1.)
+
+grids = gmrc.bin_results(nbins_azimuth=72, nbins_zenith=36)
+print(f&quot;Mean cutoff: {np.nanmean(grids[2]):.1f} GV&quot;)
+
+plot_gmrc_heatmap(grids, gmrc.rigidity_list,
+                  locname=&quot;Kamioka&quot;, plabel=&quot;p+&quot;, bfield_type=&quot;table&quot;)
+</code></pre>
+<p><img alt="Kamioka cutoff map — 100k events, table+RK45" src="../img/Kamioka_p%2B_table_cutoffplot.png" /></p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../trajectory/" class="btn btn-neutral float-left" title="Trajectories"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../solvers/" class="btn btn-neutral float-right" title="Solvers">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/kwat0308/gtracr" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../trajectory/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../solvers/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

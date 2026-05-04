@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Keito Watanabe" /><link rel="canonical" href="https://kwat0308.github.io/gtracr/benchmarks/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Benchmarks - gtracr — Cosmic Ray Trajectory Simulation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Benchmarks";
+        var mkdocs_page_input_path = "benchmarks.md";
+        var mkdocs_page_url = "/gtracr/benchmarks/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/yaml.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/python.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/bash.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> gtracr — Cosmic Ray Trajectory Simulation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../trajectory/">Trajectories</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../geomagnetic_cutoffs/">Cutoff Maps</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../solvers/">Solvers</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../bfield/">Magnetic Field Models</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../architecture/">Architecture</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Benchmarks</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#gmrc-throughput">GMRC throughput</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#solver-performance">Solver performance</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#running-benchmarks">Running benchmarks</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../license/">License</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">gtracr — Cosmic Ray Trajectory Simulation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Benchmarks</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/kwat0308/gtracr/edit/master/docs/benchmarks.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="benchmarks">Benchmarks</h1>
+<p>Measured on an Apple M3 Pro (12 threads) with <code>min_rigidity=1</code>, <code>max_rigidity=55</code>,
+<code>delta_rigidity=0.5</code>, <code>dt=1e-5</code>, <code>max_time=1.0</code>.</p>
+<h2 id="gmrc-throughput">GMRC throughput</h2>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Field</th>
+<th>Solver</th>
+<th>Samples</th>
+<th>Successful traj/s</th>
+<th>Total traj evaluated</th>
+<th>Total traj/s</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>evaluate_batch()</code> (C++)</td>
+<td>Table</td>
+<td>RK45</td>
+<td>100k</td>
+<td>48k/s</td>
+<td>~839k</td>
+<td>~400k/s</td>
+<td>2.1s</td>
+</tr>
+<tr>
+<td><code>evaluate()</code> (ThreadPool)</td>
+<td>Table</td>
+<td>RK45</td>
+<td>10k</td>
+<td>11k/s</td>
+<td>~84k (est.)</td>
+<td>~93k/s</td>
+<td>0.9s</td>
+</tr>
+<tr>
+<td><code>evaluate()</code> (ProcessPool)</td>
+<td>IGRF</td>
+<td>RK4</td>
+<td>1k</td>
+<td>67/s</td>
+<td>~8k (est.)</td>
+<td>~540/s</td>
+<td>14.9s</td>
+</tr>
+</tbody>
+</table>
+<p>"Total traj evaluated" is the number of individual trajectory integrations
+(each MC direction requires scanning multiple rigidities to find the cutoff).
+The batch mode reports this exactly; Python modes are estimated from the
+~8.4 trajectories/direction ratio observed in batch mode.</p>
+<h2 id="solver-performance">Solver performance</h2>
+<p>Single forbidden trajectory at Kamioka, zenith=45°, azimuth=90°, rigidity=7 GV,
+dt=1e-5, max_time=1 s. Table pre-loaded once; numbers measure integration only.</p>
+<table>
+<thead>
+<tr>
+<th>Solver</th>
+<th>B-field</th>
+<th style="text-align: right;">Steps</th>
+<th style="text-align: right;">Eval/s</th>
+<th style="text-align: center;">Ratio to RK4+IGRF</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RK4</td>
+<td>IGRF</td>
+<td style="text-align: right;">9372</td>
+<td style="text-align: right;">216</td>
+<td style="text-align: center;">1.00×</td>
+</tr>
+<tr>
+<td>Boris</td>
+<td>IGRF</td>
+<td style="text-align: right;">9159</td>
+<td style="text-align: right;">228</td>
+<td style="text-align: center;">1.06×</td>
+</tr>
+<tr>
+<td>RK45</td>
+<td>IGRF</td>
+<td style="text-align: right;">56</td>
+<td style="text-align: right;">5393</td>
+<td style="text-align: center;">25×</td>
+</tr>
+<tr>
+<td>RK4</td>
+<td>Dipole</td>
+<td style="text-align: right;">11823</td>
+<td style="text-align: right;">906</td>
+<td style="text-align: center;">4.2×</td>
+</tr>
+<tr>
+<td>Boris</td>
+<td>Dipole</td>
+<td style="text-align: right;">11794</td>
+<td style="text-align: right;">1047</td>
+<td style="text-align: center;">4.8×</td>
+</tr>
+<tr>
+<td>RK45</td>
+<td>Dipole</td>
+<td style="text-align: right;">39</td>
+<td style="text-align: right;">98156</td>
+<td style="text-align: center;">454×</td>
+</tr>
+<tr>
+<td>RK4</td>
+<td>Table</td>
+<td style="text-align: right;">9300</td>
+<td style="text-align: right;">1067</td>
+<td style="text-align: center;">4.9×</td>
+</tr>
+<tr>
+<td>Boris</td>
+<td>Table</td>
+<td style="text-align: right;">9091</td>
+<td style="text-align: right;">1339</td>
+<td style="text-align: center;">6.2×</td>
+</tr>
+<tr>
+<td>RK45</td>
+<td>Table</td>
+<td style="text-align: right;">55</td>
+<td style="text-align: right;">59446</td>
+<td style="text-align: center;">275×</td>
+</tr>
+</tbody>
+</table>
+<h2 id="running-benchmarks">Running benchmarks</h2>
+<pre><code class="language-bash"># Solver comparison (accuracy + timing)
+python examples/eval_solver_comparison.py --n-perf 100
+
+# Full GMRC benchmark
+python examples/eval_gmcutoff.py --iter-num 100000 --bfield-type table --solver rk45
+</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../architecture/" class="btn btn-neutral float-left" title="Architecture"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../license/" class="btn btn-neutral float-right" title="License">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/kwat0308/gtracr" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../architecture/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../license/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

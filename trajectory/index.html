@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Keito Watanabe" /><link rel="canonical" href="https://kwat0308.github.io/gtracr/trajectory/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Trajectories - gtracr — Cosmic Ray Trajectory Simulation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Trajectories";
+        var mkdocs_page_input_path = "trajectory.md";
+        var mkdocs_page_url = "/gtracr/trajectory/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/yaml.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/python.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/bash.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> gtracr — Cosmic Ray Trajectory Simulation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Trajectories</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#basic-usage">Basic usage</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#parameters">Parameters</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#required-one-of-energy-or-rigidity">Required (one of energy or rigidity)</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#optional">Optional</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#integration-parameters-get_trajectory">Integration parameters (get_trajectory)</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#solver-choice">Solver choice</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#predefined-locations">Predefined locations</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#example">Example</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../geomagnetic_cutoffs/">Cutoff Maps</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../solvers/">Solvers</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../bfield/">Magnetic Field Models</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../architecture/">Architecture</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../benchmarks/">Benchmarks</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../license/">License</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">gtracr — Cosmic Ray Trajectory Simulation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Trajectories</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/kwat0308/gtracr/edit/master/docs/trajectory.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="single-trajectories">Single Trajectories</h1>
+<p>The <code>Trajectory</code> class evaluates a single cosmic ray trajectory through
+Earth's geomagnetic field.</p>
+<h2 id="basic-usage">Basic usage</h2>
+<pre><code class="language-python">from gtracr.trajectory import Trajectory
+
+traj = Trajectory(
+    zenith_angle=45.,
+    azimuth_angle=0.,
+    rigidity=20.,
+    location_name=&quot;Kamioka&quot;,
+)
+data = traj.get_trajectory(get_data=True)
+</code></pre>
+<p>The returned dictionary contains time and the six-vector in spherical
+coordinates:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>t</code></td>
+<td>Time array (seconds)</td>
+</tr>
+<tr>
+<td><code>r</code></td>
+<td>Radial distance from Earth's center (m)</td>
+</tr>
+<tr>
+<td><code>theta</code></td>
+<td>Colatitude (rad)</td>
+</tr>
+<tr>
+<td><code>phi</code></td>
+<td>Longitude (rad)</td>
+</tr>
+<tr>
+<td><code>pr</code></td>
+<td>Radial momentum (kg m/s)</td>
+</tr>
+<tr>
+<td><code>ptheta</code></td>
+<td>Polar momentum (kg m/s)</td>
+</tr>
+<tr>
+<td><code>pphi</code></td>
+<td>Azimuthal momentum (kg m/s)</td>
+</tr>
+<tr>
+<td><code>x</code>, <code>y</code>, <code>z</code></td>
+<td>Cartesian coordinates (Earth radii)</td>
+</tr>
+</tbody>
+</table>
+<p>After evaluation, check <code>traj.particle_escaped</code> to determine if the
+trajectory was allowed (<code>True</code>) or forbidden (<code>False</code>).</p>
+<h2 id="parameters">Parameters</h2>
+<h3 id="required-one-of-energy-or-rigidity">Required (one of energy or rigidity)</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zenith_angle</code></td>
+<td>float</td>
+<td>Angle from local zenith (degrees). 0 = overhead, 90 = horizontal.</td>
+</tr>
+<tr>
+<td><code>azimuth_angle</code></td>
+<td>float</td>
+<td>Angle from geographic south in the tangent plane (degrees).</td>
+</tr>
+<tr>
+<td><code>energy</code></td>
+<td>float</td>
+<td>Total energy in GeV (mutually exclusive with <code>rigidity</code>).</td>
+</tr>
+<tr>
+<td><code>rigidity</code></td>
+<td>float</td>
+<td>Rigidity in GV (mutually exclusive with <code>energy</code>).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="optional">Optional</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>location_name</code></td>
+<td><code>None</code></td>
+<td>Predefined location name (overrides lat/lon/alt).</td>
+</tr>
+<tr>
+<td><code>latitude</code></td>
+<td><code>0.</code></td>
+<td>Geographic latitude (degrees).</td>
+</tr>
+<tr>
+<td><code>longitude</code></td>
+<td><code>0.</code></td>
+<td>Geographic longitude (degrees).</td>
+</tr>
+<tr>
+<td><code>detector_altitude</code></td>
+<td><code>0.</code></td>
+<td>Detector altitude above sea level (km).</td>
+</tr>
+<tr>
+<td><code>particle_altitude</code></td>
+<td><code>100.</code></td>
+<td>Atmosphere interaction altitude (km).</td>
+</tr>
+<tr>
+<td><code>plabel</code></td>
+<td><code>"p+"</code></td>
+<td>Particle type: <code>"p+"</code>, <code>"p-"</code>, <code>"e+"</code>, <code>"e-"</code>.</td>
+</tr>
+<tr>
+<td><code>bfield_type</code></td>
+<td><code>"igrf"</code></td>
+<td>Field model: <code>"igrf"</code>, <code>"dipole"</code>, or <code>"table"</code>.</td>
+</tr>
+<tr>
+<td><code>date</code></td>
+<td>today</td>
+<td>IGRF evaluation date (<code>"yyyy-mm-dd"</code>).</td>
+</tr>
+<tr>
+<td><code>solver</code></td>
+<td><code>"rk4"</code></td>
+<td>Integrator: <code>"rk4"</code>, <code>"boris"</code>, or <code>"rk45"</code>.</td>
+</tr>
+<tr>
+<td><code>atol</code></td>
+<td><code>1e-3</code></td>
+<td>Absolute tolerance (RK45 only).</td>
+</tr>
+<tr>
+<td><code>rtol</code></td>
+<td><code>1e-6</code></td>
+<td>Relative tolerance (RK45 only).</td>
+</tr>
+<tr>
+<td><code>escape_altitude</code></td>
+<td><code>10 * RE</code></td>
+<td>Escape radius in meters.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="integration-parameters-get_trajectory">Integration parameters (<code>get_trajectory</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dt</code></td>
+<td><code>1e-5</code></td>
+<td>Time step in seconds.</td>
+</tr>
+<tr>
+<td><code>max_time</code></td>
+<td><code>1.</code></td>
+<td>Maximum integration time in seconds.</td>
+</tr>
+<tr>
+<td><code>get_data</code></td>
+<td><code>False</code></td>
+<td>Return trajectory data dictionary.</td>
+</tr>
+<tr>
+<td><code>use_python</code></td>
+<td><code>False</code></td>
+<td>Use the pure-Python fallback integrator instead of the C++ extension. Useful for debugging; slower.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="solver-choice">Solver choice</h2>
+<p>For <strong>single trajectory visualization</strong>, use <code>solver="rk4"</code> or
+<code>solver="boris"</code> with <code>bfield_type="igrf"</code>. These fixed-step solvers produce
+regularly spaced output, which is better for plotting.</p>
+<ul>
+<li><strong>Boris</strong> is ~30% faster than RK4 with 2x better momentum conservation.</li>
+<li><strong>RK45</strong> uses adaptive stepping (variable output spacing) and is best
+  suited for fast cutoff scanning in <a href="../geomagnetic_cutoffs/">GMRC evaluation</a>.</li>
+</ul>
+<p>See the <a href="../solvers/">Solvers guide</a> for a detailed comparison.</p>
+<h2 id="predefined-locations">Predefined locations</h2>
+<p>Kamioka, IceCube, SNOLAB, UofA, CTA-North, CTA-South, ORCA, ANTARES,
+Baikal-GVD, TA.</p>
+<h2 id="example">Example</h2>
+<pre><code class="language-python">from gtracr.trajectory import Trajectory
+
+# 20 GV proton from the west at Kamioka, using Boris pusher
+traj = Trajectory(
+    zenith_angle=45., azimuth_angle=90., rigidity=20.,
+    location_name=&quot;Kamioka&quot;, solver=&quot;boris&quot;,
+)
+data = traj.get_trajectory(get_data=True)
+
+if traj.particle_escaped:
+    print(&quot;Allowed trajectory&quot;)
+    print(f&quot;  Final radius: {data['r'][-1]:.0f} m&quot;)
+    print(f&quot;  Steps: {len(data['t'])}&quot;)
+</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href=".." class="btn btn-neutral float-left" title="Home"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../geomagnetic_cutoffs/" class="btn btn-neutral float-right" title="Cutoff Maps">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/kwat0308/gtracr" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href=".." style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../geomagnetic_cutoffs/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

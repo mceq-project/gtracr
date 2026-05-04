@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Keito Watanabe" /><link rel="canonical" href="https://kwat0308.github.io/gtracr/bfield/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Magnetic Field Models - gtracr — Cosmic Ray Trajectory Simulation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Magnetic Field Models";
+        var mkdocs_page_input_path = "bfield.md";
+        var mkdocs_page_url = "/gtracr/bfield/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/yaml.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/python.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/bash.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> gtracr — Cosmic Ray Trajectory Simulation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../trajectory/">Trajectories</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../geomagnetic_cutoffs/">Cutoff Maps</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../solvers/">Solvers</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Magnetic Field Models</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#classes">Classes</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#magneticfield-ideal-dipole">MagneticField — ideal dipole</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#igrf13-spherical-harmonic-model">IGRF13 — spherical harmonic model</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#igrftable-pre-computed-lookup-table">IGRFTable — pre-computed lookup table</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#common-interface">Common interface</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#clearing-the-table-cache">Clearing the table cache</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../architecture/">Architecture</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../benchmarks/">Benchmarks</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../license/">License</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">gtracr — Cosmic Ray Trajectory Simulation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Magnetic Field Models</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/kwat0308/gtracr/edit/master/docs/bfield.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="magnetic-field-models">Magnetic Field Models</h1>
+<p>gtracr exposes three Python magnetic field classes via <code>gtracr.bfield</code>.
+All three share the same interface and can be used directly — for example,
+to query the field at a point or to drive the pure-Python fallback integrator.</p>
+<pre><code class="language-python">from gtracr.bfield import MagneticField, IGRF13, IGRFTable
+</code></pre>
+<h2 id="classes">Classes</h2>
+<h3 id="magneticfield-ideal-dipole"><code>MagneticField</code> — ideal dipole</h3>
+<p>Evaluates the first-order term of the geomagnetic scalar potential
+(1/r³ falloff). Fastest to evaluate; useful for coarse studies or
+sanity checks. Uses the IGRF-2020 G10 coefficient (29 404.8 nT).</p>
+<pre><code class="language-python">from gtracr.bfield import MagneticField
+
+bf = MagneticField()
+Br, Btheta, Bphi = bf.values(r=6.371e6, theta=1.0, phi=0.0)
+</code></pre>
+<h3 id="igrf13-spherical-harmonic-model"><code>IGRF13</code> — spherical harmonic model</h3>
+<p>Full IGRF-13 evaluation up to degree 13 using time-interpolated
+Schmidt quasi-normalized coefficients (valid 1900–2025).</p>
+<pre><code class="language-python">from gtracr.bfield import IGRF13
+from gtracr.utils import ymd_to_dec
+
+bf = IGRF13(curr_year=float(ymd_to_dec(&quot;2024-01-01&quot;)))
+Br, Btheta, Bphi = bf.values(r=6.371e6, theta=1.0, phi=0.5)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>curr_year</code></td>
+<td>Decimal year for coefficient interpolation (e.g. <code>2024.5</code>).</td>
+</tr>
+<tr>
+<td><code>nmax</code></td>
+<td>Truncation degree (default: 13, the maximum in IGRF-13).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="igrftable-pre-computed-lookup-table"><code>IGRFTable</code> — pre-computed lookup table</h3>
+<p>Trilinear interpolation over a pre-computed 3D grid
+(64 × 128 × 256 in r, θ, φ). ~7x faster than <code>IGRF13</code> for repeated
+queries. Covers 1–10 Earth radii; the dipole approximation is used outside
+this range.</p>
+<p>The table is generated automatically on first use and cached to
+<code>gtracr/data/igrf_table_&lt;year&gt;.npy</code> and <code>igrf_table_&lt;year&gt;_params.npz</code>.
+Subsequent runs load the cache directly.</p>
+<pre><code class="language-python">from gtracr.bfield import IGRFTable
+
+bf = IGRFTable()  # builds or loads cached table for today's date
+Br, Btheta, Bphi = bf.values(r=6.371e6, theta=1.0, phi=0.5)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>igrf_obj</code></td>
+<td>Optional pre-built C++ <code>IGRF</code> object. Built from <code>igrf13.json</code> if <code>None</code>.</td>
+</tr>
+<tr>
+<td><code>verbose</code></td>
+<td>Print progress while generating the table (default <code>False</code>).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="common-interface">Common interface</h2>
+<p>All three classes implement:</p>
+<pre><code class="language-python">bf.values(r, theta, phi) -&gt; numpy.ndarray shape (3,)
+</code></pre>
+<p>Returns <code>(Br, Btheta, Bphi)</code> in Tesla at geocentric spherical coordinates
+<code>(r [m], theta [rad], phi [rad])</code>.</p>
+<h2 id="clearing-the-table-cache">Clearing the table cache</h2>
+<p>If you need to regenerate the cached lookup table (e.g. after updating the
+IGRF coefficients or changing the evaluation date), delete the relevant files
+from the data directory:</p>
+<pre><code class="language-bash">rm gtracr/data/igrf_table_*.npy gtracr/data/igrf_table_*_params.npz
+</code></pre>
+<p>The table will be regenerated on the next run.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../solvers/" class="btn btn-neutral float-left" title="Solvers"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../architecture/" class="btn btn-neutral float-right" title="Architecture">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/kwat0308/gtracr" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../solvers/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../architecture/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
