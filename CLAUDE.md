@@ -89,6 +89,7 @@ pytest tests/test_numerical_regression.py -v  # regression against saved baselin
 pytest tests/test_trajectory_coverage.py -v   # broad trajectory coverage
 pytest tests/test_particle_location.py -v     # particle/location combinations
 pytest tests/test_utils.py -v           # utility function tests
+pytest tests/test_mutracr.py -v         # MuonTracer: analytic anchors + numpy-reference parity
 ```
 
 ---
@@ -104,6 +105,9 @@ python examples/eval_gmcutoff.py
 
 # Benchmarks
 python examples/eval_benchmarks.py
+
+# MuonTracer benchmark (C++ vs vendored numpy reference)
+python examples/eval_mutracr_benchmark.py
 ```
 
 ---
@@ -124,6 +128,15 @@ User (Python)
   │       evaluate()       — Python-orchestrated (ProcessPool or ThreadPool)
   │       evaluate_batch() — entire MC loop in C++ (BatchGMRC)
   │
+  ├── MuonTracer (src/gtracr/mutracr.py)          ["mutracr"]
+  │     Batch atmospheric-muon transport between production and decay:
+  │     RK4 + dE/dX loss + expected-decay deposits + MCS variance.
+  │     Units: cm / GeV / Tesla / g/cm^3 (NOT the SI of Trajectory).
+  │     Deposit consumers: bank, spectrum tally, angular tally.
+  │     Michel mu->nu kernels (rest_kernel, lab_spectrum, lab_kernel).
+  │     Pure-numpy reference vendored as gtracr/_mu_reference.py
+  │     (the nu3d stage-C tracer); tests pin C++ against it.
+  │
   ├── bfield subpackage (src/gtracr/bfield/)
   │     ├── MagneticField  — ideal dipole (1/r³ falloff)
   │     ├── IGRF13         — Python IGRF-13 spherical harmonics
@@ -138,6 +151,11 @@ User (Python)
         ├── BatchGMRC (C++)              ← BATCH evaluator
         │     Entire GMRC MC loop in C++: RNG, coordinate transforms, rigidity
         │     scanning, std::thread parallelism. Eliminates all Python overhead.
+        │
+        ├── MuonTracer (C++)             ← MUON transport engine (mutracr)
+        │     Cartesian RK4 with per-ray adaptive dt, continuous loss, decay
+        │     deposits, per-thread tallies. Field backends: uniform, dipole,
+        │     IGRF thin-shell table. src/cpp/{include,src}/MuonTracer.{hpp,cpp}.
         │
         ├── IGRF (C++)                   ← B-field model (direct)
         │     Degree-13 spherical harmonic expansion (IGRF-13).
@@ -222,6 +240,29 @@ scanning, and `std::thread` parallelism all in C++. No Python overhead per traje
 **Result methods:**
 - `interpolate_results()` — scipy `griddata` scattered interpolation (legacy)
 - `bin_results()` — fast binning into regular azimuth/zenith grid (preferred for large N)
+
+### `MuonTracer` (`src/gtracr/mutracr.py`) — "mutracr"
+
+```python
+import numpy as np
+from gtracr import MuonTracer
+
+mt = MuonTracer(
+    bfield="shell",          # "none" | "dipole" | "shell" | ("uniform", (bx,by,bz))
+    atmosphere="usstd",      # "none" | "usstd" | ("uniform", rho0) | ("table", h, rho)
+    dedx=2.0e-3,             # constant or (e_kin_grid, a) table [GeV/(g/cm^2)]
+    r_ground=6.3712e8,       # ground sphere [cm]; MCEq-matched work uses 6.391e8
+)
+res = mt.trace(x, p, q, pol=pol, w=w,          # SoA arrays, cm / GeV
+               deposit=dict(kind="spectrum", e_edges=np.geomspace(0.13, 41.0, 193)),
+               n_threads=0)                     # 0 = all cores, GIL released
+res["fate"], res["fate_w"], res["weight_audit"], res["spectrum"]["w"][+1]
+```
+
+Deterministic weighted rays (expected-decay deposits, never sampled); the numpy
+reference implementation lives in `gtracr/_mu_reference.py` and the tests pin the
+C++ engine against it at float-rounding level. Units are cm/GeV/Tesla/g-cm
+(muon-physics convention), documented in `docs/mutracr.md`.
 
 ---
 

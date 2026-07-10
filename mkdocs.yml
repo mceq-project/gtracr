@@ -8,6 +8,7 @@ nav:
   - Cutoff Maps: 'geomagnetic_cutoffs.md'
   - Solvers: 'solvers.md'
   - Magnetic Field Models: 'bfield.md'
+  - Muon Transport (mutracr): 'mutracr.md'
   - Architecture: 'architecture.md'
   - Benchmarks: 'benchmarks.md'
   - License: 'license.md'

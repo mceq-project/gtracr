@@ -2,9 +2,11 @@ py.install_sources(
   [
     '__init__.py',
     '_fallback.py',
+    '_mu_reference.py',
     'constants.py',
     'geomagnetic_cutoffs.py',
     'location.py',
+    'mutracr.py',
     'particle.py',
     'plotting.py',
     'trajectory.py',
