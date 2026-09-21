@@ -7,6 +7,7 @@ particle dictionaries.
 """
 
 import pickle
+from datetime import date
 from pathlib import Path
 
 import numpy as np
@@ -94,34 +95,10 @@ def ymd_to_dec(ymd_date):
         the date in decimal format, in units of years.
 
     """
-    # break down the str to get year, month, date separately
-    year, month, day = [float(val) for val in ymd_date.split("-")]
-
-    # the number of days in each month
-    # not considering leap years right now
-    days_per_mth = np.array(
-        [31.0, 28.0, 31.0, 30.0, 31.0, 30.0, 31.0, 31.0, 30.0, 31.0, 30.0, 31.0]
-    )
-
-    # get the total number of days based on the month + day
-    ndays = float(days_per_mth[int(month) - 1]) + day
-
-    # check if year is a leap year or not
-    # this will change the maximum # days in a year
-    # also will change the number of days to the given date
-    max_ndays = 365
-    if year % 4 == 0:
-        max_ndays += 1
-        ndays += 1
-
-    # convert month into decimal years
-    dec_mth = month / 12.0
-
-    # convert days into decimal years
-    dec_days = ndays / max_ndays
-
-    # return the sum of year, month, day
-    return year + dec_mth + dec_days
+    value = date.fromisoformat(ymd_date)
+    start = date(value.year, 1, 1)
+    end = date(value.year + 1, 1, 1)
+    return value.year + (value - start).days / (end - start).days
 
 
 def import_dict(fname):
