@@ -15,6 +15,7 @@ from gtracr.constants import (
     RAD_PER_DEG,
     SOLVER_CHARS,
 )
+from gtracr.location import Location
 from gtracr.utils import location_dict, particle_dict, ymd_to_dec
 
 _DATA_DIR = Path(__file__).parent / "data"
@@ -127,7 +128,11 @@ class Trajectory:
         # only import location dictionary and use those values if location_name is not None
         if location_name is not None:
             # location_dict = set_locationdict()
-            loc = location_dict[location_name]
+            loc = (
+                location_name
+                if isinstance(location_name, Location)
+                else location_dict[location_name]
+            )
 
             latitude = loc.latitude
             longitude = loc.longitude

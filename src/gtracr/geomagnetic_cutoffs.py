@@ -17,6 +17,7 @@ from gtracr.constants import (
     KG_PER_GEVC2,
     SOLVER_CHARS,
 )
+from gtracr.location import Location
 from gtracr.trajectory import Trajectory
 
 _DATA_DIR = Path(__file__).parent / "data"
@@ -600,7 +601,11 @@ class GMRC:
             shared_table = None
             table_params = TableParams()
 
-        loc = location_dict[self.location]
+        loc = (
+            self.location
+            if isinstance(self.location, Location)
+            else location_dict[self.location]
+        )
         particle = particle_dict[self.plabel]
 
         if base_seed is None:
