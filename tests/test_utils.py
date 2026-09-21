@@ -19,10 +19,17 @@ def test_ymd_to_dec_calendar(value, expected):
     assert ymd_to_dec(value) == pytest.approx(expected, abs=1e-10, rel=0)
 
 
-@pytest.mark.parametrize('value', ['2019-02-29', '2100-02-29', '2020-13-01', '2020-01-32'])
+@pytest.mark.parametrize('value', ['2019-02-29', '2100-02-29', '2020-13-01', '2020-01-32', '1952-04-31'])
 def test_ymd_to_dec_invalid_date(value):
     with pytest.raises(ValueError):
         ymd_to_dec(value)
+
+
+def test_trajectory_receives_calendar_epoch():
+    from gtracr.trajectory import Trajectory
+
+    trajectory = Trajectory(zenith_angle=0., azimuth_angle=0., rigidity=10., date='2015-01-01')
+    assert trajectory.igrf_params[1] == 2015.0
 
 
 def test_dec_to_dms_north_east():
