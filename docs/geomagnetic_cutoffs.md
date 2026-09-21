@@ -68,6 +68,12 @@ az_grid, zen_grid, cutoff_grid = gmrc.interpolate_results()
 
 ## Parameters
 
+`location` also accepts a `gtracr.location.Location` object with explicit
+latitude, longitude and altitude (km). This is useful when a downstream
+atmosphere model supplies the site geometry. Its coordinates take precedence
+over the built-in location table, even if its name matches a registered site.
+The same object is accepted by `Trajectory(location_name=...)`.
+
 ### `GMRC` constructor
 
 | Parameter | Default | Description |
