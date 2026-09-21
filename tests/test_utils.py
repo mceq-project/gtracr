@@ -2,30 +2,27 @@
 Tests for gtracr/utils.py
 """
 
+import pytest
+
 from gtracr.utils import dec_to_dms, location_dict, particle_dict, ymd_to_dec
 
 
-def test_ymd_to_dec_basic():
-    """ymd_to_dec("2015-01-01") should be close to 2015.0 (start of year)"""
-    val = ymd_to_dec("2015-01-01")
-    # It won't be exactly 2015.0 because of month+day contribution,
-    # but it should be just above 2015
-    assert val > 2015.0
-    assert val < 2015.2
+@pytest.mark.parametrize('value, expected', [
+    ('2015-01-01', 2015.0),
+    ('2000-03-01', 2000 + 60 / 366),
+    ('2020-07-02', 2020.5),
+    ('2019-12-31', 2019 + 364 / 365),
+    ('1900-03-01', 1900 + 59 / 365),
+    ('2000-02-29', 2000 + 59 / 366),
+])
+def test_ymd_to_dec_calendar(value, expected):
+    assert ymd_to_dec(value) == pytest.approx(expected, abs=1e-10, rel=0)
 
 
-def test_ymd_to_dec_leap_year():
-    """2000 is a leap year — March 1 should be slightly past ~2000.17"""
-    val = ymd_to_dec("2000-03-01")
-    assert val > 2000.0
-    assert val < 2001.0
-
-
-def test_ymd_to_dec_mid_year():
-    """Mid-year date should land in the middle of the year decimal"""
-    val = ymd_to_dec("2020-07-02")
-    assert val > 2020.5
-    assert val < 2021.0
+@pytest.mark.parametrize('value', ['2019-02-29', '2100-02-29', '2020-13-01', '2020-01-32'])
+def test_ymd_to_dec_invalid_date(value):
+    with pytest.raises(ValueError):
+        ymd_to_dec(value)
 
 
 def test_dec_to_dms_north_east():
