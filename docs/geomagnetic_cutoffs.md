@@ -44,7 +44,7 @@ chosen at runtime.
 
 ## Cutoffs outside the scanned range
 
-Every sampled direction is kept. `rcutoff` is clipped to the scanned
+For bisection, every sampled direction is kept. `rcutoff` is clipped to the scanned
 rigidity range `[min_rigidity, max_rigidity]` (both ends included):
 
 - `rcutoff == min_rigidity`: the lowest rigidity already escapes, the cutoff
@@ -53,10 +53,6 @@ rigidity range `[min_rigidity, max_rigidity]` (both ends included):
   cutoff is above `max_rigidity` and `rcutoff` holds `max_rigidity` as a
   lower bound. Mask these directions or raise `max_rigidity` if the high
   cutoffs matter.
-
-Earlier versions dropped such directions in the batch mode (and redrew
-until `iter_num` directions had a cutoff below `max_rigidity`) and stored
-`0.0` in the Python mode; both biased sky maps toward low cutoffs.
 
 ## Getting results
 
@@ -125,8 +121,7 @@ The default `method="bisection"` assumes that every rigidity above the cutoff
 is allowed and every rigidity below it is forbidden. It returns the first
 escaping rigidity that the bisection lands on. Inside the penumbra, where
 allowed and forbidden bands alternate, that value is none of the standard
-cutoffs. Directions whose cutoff lies above `max_rigidity` are dropped
-and redrawn, so maps are biased where cutoffs are high.
+cutoffs. Directions above `max_rigidity` are retained and flagged.
 
 `method="penumbra"` scans a geometric rigidity ladder
 R_k = R_min (1 + δ)^k, k = 0 … K−1, K = ⌈ln(R_max/R_min)/ln(1+δ)⌉ + 1. Rung k
@@ -173,19 +168,6 @@ rung centres and `gmrc.ladder_allowed` (shape (n, K), bool) the
 allowed/forbidden flag of every rung and direction. Averaging the flags over
 directions gives a transmission function.
 
-**Cost** (measured with the fixed 10 R_E / 1 s escape criterion and the old
-RK45 tolerances; see [Escape criterion](#escape-criterion) for the current
-defaults). About 190 trajectories per direction with the defaults
-(0.3–100 GV, δ = 0.5 %, coarse 8, guard 2), against about 7 for bisection on
-5–55 GV in 1 GV steps. That is about 30× the wall time at equal sample count. The
-full ladder takes 1166 trajectories per direction. Kamioka, `bfield_type="table"`, 2000
-random directions, 16 threads:
-
-| solver | bisection | penumbra |
-|--------|-----------|----------|
-| `rk45` | 0.04 s (13.2k traj) | 1.2 s (382k traj) |
-| `rk4`, dt = 1e-5 | 3.9 s (13.2k traj) | 114 s (382k traj) |
-
 **When to use.** Use penumbra mode whenever the cutoff feeds a flux
 calculation, a cutoff map at low or mid latitudes, or any direction close
 to the horizon. These are the cases where the penumbra is wide. Bisection is
@@ -196,15 +178,7 @@ matter.
 
 A back-traced trajectory is *allowed* when it reaches the escape radius before
 it returns below the starting altitude, and *forbidden* when it returns or runs
-out of time. A fixed sphere of 10 R_E and a fixed `max_time = 1 s` are too small
-at low rigidity. The Störmer length C_St = R_E √(B0 R_E |q| / p) is 24 R_E at
-0.1 GV. Near the cutoff, escaping trajectories also loop for many seconds.
-Both effects count allowed trajectories as forbidden. With the fixed criterion,
-R_L in the dipole at 60° comes out up to 18 % too high (16 % for the vertical
-direction). At the South Pole
-(IGRF) the cutoffs come out at 0.20 GV instead of 0.067 GV.
-
-gtracr therefore scales both limits with the rigidity of each trajectory
+out of time. gtracr scales both limits with the rigidity of each trajectory
 (all solvers, the single-trajectory path and both GMRC modes):
 
     r_esc = max(escape_radius, k · C_St(p)),
@@ -216,40 +190,6 @@ model, computed once per tracer. The defaults are `escape_factor` k = 4 and
 `escape_factor=0, time_factor=0` restores the fixed criterion.
 `Trajectory`, `GMRC` and `TrajectoryTracer.set_escape_scaling` accept both
 parameters.
-
-**Convergence study** (RK45 rtol 1e-9, full penumbra ladder δ = 0.5 %, Cartesian
-integrator; maximum deviation over the directions vs k = 4, N = 640):
-
-| case | fixed (10 R_E, 1 s) | N = 20 | N = 40 | **N = 80** | N = 160 | N = 320 |
-|------|------|------|------|------|------|------|
-| dipole 65°, 7 dirs, R_eff | 15.6 % | 1.0 % | 0.5 % | **0.0 %** | 0.0 % | 0.0 % |
-| dipole 70°, 7 dirs, R_eff | 25.7 % | 1.0 % | 0.5 % | **0.0 %** | 0.0 % | 0.0 % |
-| Oulu (IGRF), 4 dirs, R_eff | 18.8 % | 3.9 % | 2.0 % | **0.49 %** | 0.48 % | 0.0 % |
-| South Pole (IGRF), 4 dirs, R_eff | 213 % | 3.0 % | 3.0 % | **3.0 %** | 2.5 % | 1.5 % |
-| cost (full ladder, high latitude) | 1 | 3–7 | 5–12 | **7–17** | 9–22 | 10–35 |
-
-With k = 4 and N = 80, the vertical dipole R_L at 55–73° is within one
-rung (0.25 %) of Störmer's value: R_L/R_St = 0.9997–1.0022. The escape radius is
-converged at k = 4: doubling it to k = 8 at N = 80 changes R_eff by at most
-one rung (0.25 %) in all 7 directions (separate δ = 0.25 % runs). At the South Pole the
-cutoffs are about 0.067 GV, so the remaining 3 % is 2 MV. There, long-lived
-quasi-trapped orbits keep escaping as the budget grows. R_L converges more
-slowly than R_eff everywhere, because it is set by single isolated allowed rungs.
-The cost factors refer to scans that trace many forbidden low-rigidity rungs. Above about
-10 GV the radius stays at 10 R_E and only bound trajectories run longer.
-
-**Cost at the defaults.** Kamioka, `bfield_type="table"`, 2000 random
-directions, 48 threads:
-
-| solver | method | old defaults (fixed criterion, `atol=1e-3`) | new tolerances, fixed criterion | new defaults |
-|--------|--------|------|------|------|
-| rk45 | bisection 5–55 GV | 0.05 s | 0.06 s | 0.07 s |
-| rk45 | penumbra 0.3–100 GV | 0.39 s | 1.44 s | 3.2 s |
-| rk4 | bisection 5–55 GV | 1.5 s | — | 1.6 s |
-| rk4 | penumbra 0.3–100 GV | 32 s | — | 211 s |
-
-Fixed-step solvers pay the full time budget in steps for every bound orbit.
-For scans that reach below about 1 GV, use `rk45`.
 
 ## Solver recommendation
 

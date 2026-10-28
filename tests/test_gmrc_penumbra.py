@@ -130,6 +130,8 @@ def test_dipole_stormer_lower_cutoff(lat):
         max_rigidity=20.0,
         ladder_delta=delta,
         coarse=1,
+        atol=0.0,
+        rtol=1e-9,
     )
     zen = [0.0, 30.0, 0.0, 30.0]
     az = [0.0, 0.0, 180.0, 180.0]

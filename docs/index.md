@@ -4,7 +4,7 @@
 and computes geomagnetic rigidity cutoffs (GMRC).
 
 It back-traces particle paths by integrating the relativistic Lorentz force
-equation in geocentric spherical coordinates, using the IGRF-14 magnetic field
+equation in Cartesian coordinates, using the IGRF-14 magnetic field
 model. Three integration solvers are available (RK4, Boris, RK45), and a
 tabulated IGRF lookup table provides ~7x speedup over direct spherical
 harmonic evaluation.

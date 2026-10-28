@@ -28,7 +28,7 @@ class Trajectory:
 
     Constructs initial conditions from a particle type, arrival direction,
     energy or rigidity, and geographic location, then integrates the
-    relativistic Lorentz force equation in geocentric spherical coordinates.
+    relativistic Lorentz force equation in Cartesian coordinates.
 
     Parameters
     ----------
@@ -39,9 +39,7 @@ class Trajectory:
         Azimuth of the arrival direction (the direction the particle comes
         from) in degrees, measured from geographic north, clockwise seen from
         above: 0 = from north, 90 = from east, 180 = from south, 270 = from
-        west (the astropy AltAz convention). Before gtracr 3.0 the azimuth
-        followed Honda's convention (0 = from south, 90 = from east);
-        convert with ``(180 - azimuth_old) % 360``. See docs/conventions.md.
+        west. See docs/conventions.md.
     energy : float, optional
         Cosmic ray total energy in GeV. Mutually exclusive with *rigidity*.
     rigidity : float, optional

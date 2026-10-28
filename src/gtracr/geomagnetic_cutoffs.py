@@ -357,7 +357,7 @@ class GMRC:
         defaults; ``0, 0`` restores the fixed 10 RE / ``max_time`` criterion.
     - method : str, optional
         ``"bisection"`` (default): bisection on a linear rigidity grid, returns the first
-        escaping rigidity found and drops directions whose cutoff exceeds ``max_rigidity``.
+        escaping rigidity found; directions above the scan are retained and flagged.
         This assumes there is no penumbra. ``"penumbra"``: resolves the penumbra on a
         geometric rigidity ladder and returns the Cooke et al. (1991) lower, upper and
         effective cutoffs R_L, R_U, R_eff for every direction (``evaluate_batch`` only).
@@ -376,7 +376,7 @@ class GMRC:
 
     Results
     -------
-    ``data_dict`` holds one entry per sampled direction: ``azimuth``,
+    For bisection, ``data_dict`` holds one entry per sampled direction: ``azimuth``,
     ``zenith``, ``rcutoff`` and ``above_rmax``. ``rcutoff`` is the lowest
     tested rigidity that escapes; it is clipped to the tested range, so
     ``min_rigidity`` means "cutoff at or below min_rigidity" and, where
@@ -701,7 +701,7 @@ class GMRC:
         dt : float
             Step size for trajectory integration (default 1e-5 s).
         max_time : float
-            Maximum integration time per trajectory (default 1 s).
+            Minimum integration time budget per trajectory (default 1 s).
         base_seed : int, optional
             RNG seed for reproducibility. If None, a random seed is used.
         zenith, azimuth : array-like, optional
