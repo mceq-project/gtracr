@@ -48,8 +48,8 @@ PYBIND11_MODULE(_libgtracr, M) {
 
   // Standalone function: generate the IGRF lookup table once in Python,
   // return (numpy array, TableParams) so threads can share the table.
-  M.attr("DEFAULT_ESCAPE_FACTOR") = TrajectoryTracer::DEFAULT_ESCAPE_FACTOR;
-  M.attr("DEFAULT_TIME_FACTOR") = TrajectoryTracer::DEFAULT_TIME_FACTOR;
+  M.attr("DEFAULT_ESCAPE_FACTOR") = integrator_control::DEFAULT_ESCAPE_FACTOR;
+  M.attr("DEFAULT_TIME_FACTOR") = integrator_control::DEFAULT_TIME_FACTOR;
   M.attr("DEFAULT_ATOL") = integrator_control::DEFAULT_ATOL;
   M.attr("DEFAULT_RTOL") = integrator_control::DEFAULT_RTOL;
 
