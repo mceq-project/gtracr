@@ -36,14 +36,14 @@ class IGRFTable:
     Pre-computed IGRF lookup table with trilinear interpolation.
 
     Provides the same ``values(r, theta, phi) → (Br, Btheta, Bphi)``
-    interface as ``MagneticField`` / ``IGRF13`` for use as a drop-in
+    interface as ``MagneticField`` / ``IGRF14`` for use as a drop-in
     replacement in ``pTrajectoryTracer``.
 
     Parameters
     ----------
     igrf_obj : ``gtracr._libgtracr.IGRF``, optional
         Initialised C++ IGRF object.  When *None* a new one is built from
-        the bundled ``igrf13.json`` using today's date.
+        the bundled IGRF coefficients using today's date.
     verbose : bool
         Print progress while building the table (default False).
     """
@@ -51,10 +51,11 @@ class IGRFTable:
     def __init__(self, igrf_obj=None, verbose=False):
         if igrf_obj is None:
             from gtracr._libgtracr import IGRF
+            from gtracr.constants import IGRF_JSON_FILE
 
-            datapath = str(_DATA_DIR.resolve())
+            fpath = str((_DATA_DIR / IGRF_JSON_FILE).resolve())
             dec_date = float(ymd_to_dec(str(_date.today())))
-            igrf_obj = IGRF(datapath, dec_date)
+            igrf_obj = IGRF(fpath, dec_date)
 
         self._r_min = _R_MIN
         self._r_max = _R_MAX

@@ -9,6 +9,7 @@ nav:
   - Solvers: 'solvers.md'
   - Magnetic Field Models: 'bfield.md'
   - Architecture: 'architecture.md'
+  - Conventions: 'conventions.md'
   - Benchmarks: 'benchmarks.md'
   - License: 'license.md'
 theme:

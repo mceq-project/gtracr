@@ -41,7 +41,7 @@ trajectory was allowed (`True`) or forbidden (`False`).
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `zenith_angle` | float | Angle from local zenith (degrees). 0 = overhead, 90 = horizontal. |
-| `azimuth_angle` | float | Angle from geographic south in the tangent plane (degrees). |
+| `azimuth_angle` | float | Azimuth of the arrival direction from geographic north, clockwise (degrees): 0 = from north, 90 = from east. See [Conventions](conventions.md). |
 | `energy` | float | Total energy in GeV (mutually exclusive with `rigidity`). |
 | `rigidity` | float | Rigidity in GV (mutually exclusive with `energy`). |
 
@@ -58,16 +58,17 @@ trajectory was allowed (`True`) or forbidden (`False`).
 | `bfield_type` | `"igrf"` | Field model: `"igrf"`, `"dipole"`, or `"table"`. |
 | `date` | today | IGRF evaluation date (`"yyyy-mm-dd"`). |
 | `solver` | `"rk4"` | Integrator: `"rk4"`, `"boris"`, or `"rk45"`. |
-| `atol` | `1e-3` | Absolute tolerance (RK45 only). |
-| `rtol` | `1e-6` | Relative tolerance (RK45 only). |
-| `escape_altitude` | `10 * RE` | Escape radius in meters. |
+| `atol` | `0.` | Absolute tolerance (RK45 only, dimensionless; see [Solvers](solvers.md)). |
+| `rtol` | `1e-7` | Relative tolerance (RK45 only). |
+| `escape_altitude` | `10 * RE` | Minimum escape radius in meters. |
+| `escape_factor`, `time_factor` | `4`, `80` | Rigidity-aware escape criterion (see [Geomagnetic cutoffs](geomagnetic_cutoffs.md#escape-criterion)); `0, 0` = fixed `escape_altitude` / `max_time`. |
 
 ### Integration parameters (`get_trajectory`)
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `dt` | `1e-5` | Time step in seconds. |
-| `max_time` | `1.` | Maximum integration time in seconds. |
+| `max_time` | `1.` | Integration time in seconds; a lower bound of the rigidity-aware budget unless `time_factor=0`. |
 | `get_data` | `False` | Return trajectory data dictionary. |
 | `use_python` | `False` | Use the pure-Python fallback integrator instead of the C++ extension. Useful for debugging; slower. |
 
@@ -93,7 +94,7 @@ Baikal-GVD, TA.
 ```python
 from gtracr.trajectory import Trajectory
 
-# 20 GV proton from the west at Kamioka, using Boris pusher
+# 20 GV proton from the east at Kamioka, using Boris pusher
 traj = Trajectory(
     zenith_angle=45., azimuth_angle=90., rigidity=20.,
     location_name="Kamioka", solver="boris",

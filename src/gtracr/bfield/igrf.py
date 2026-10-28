@@ -1,23 +1,25 @@
-"""IGRF-13 geomagnetic field model (degree-13 spherical harmonics)."""
+"""IGRF-14 geomagnetic field model (degree-13 spherical harmonics)."""
 
+import warnings
 from pathlib import Path
 
 import numpy as np
 from scipy.interpolate import interp1d
 
 import gtracr.bfield._utils as iuf
-from gtracr.constants import DEG_PER_RAD, EARTH_RADIUS  # noqa: F401
+from gtracr.constants import DEG_PER_RAD, EARTH_RADIUS, IGRF_SHC_FILE  # noqa: F401
 
 _DATA_DIR = Path(__file__).parent.parent / "data"
 
 
-class IGRF13:
+class IGRF14:
     """
-    IGRF-13 geomagnetic field model.
+    IGRF-14 geomagnetic field model.
 
     Evaluates Earth's magnetic field via the International Geomagnetic
-    Reference Field 13th edition (1900–2025), using degree-13 Schmidt
-    quasi-normalized spherical harmonic coefficients.
+    Reference Field 14th generation (1900–2030; definitive to 2020, the 2025
+    main field extrapolated with its secular variation to 2030), using
+    degree-13 Schmidt quasi-normalized spherical harmonic coefficients.
 
     Parameters
     ----------
@@ -25,16 +27,17 @@ class IGRF13:
         Decimal year for coefficient interpolation (e.g. ``2024.5``).
     nmax : int, optional
         Truncation degree for the series expansion.  Defaults to the
-        maximum degree in the IGRF-13 data file (13).
+        maximum degree in the IGRF data file (13).
 
     References
     ----------
-    https://www.ngdc.noaa.gov/IAGA/vmod/igrf.html
+    Alken et al., Earth Planets Space (2025), IGRF-14;
+    https://www.ncei.noaa.gov/products/international-geomagnetic-reference-field
     """
 
     def __init__(self, curr_year, nmax=None):
         self.curr_year = curr_year
-        fpath = _DATA_DIR / "IGRF13.shc"
+        fpath = _DATA_DIR / IGRF_SHC_FILE
 
         leap_year = self.curr_year % 4 == 0
         igrf = iuf.load_shcfile(str(fpath), leap_year=leap_year)
@@ -45,7 +48,7 @@ class IGRF13:
 
     def values(self, r, theta, phi):
         """
-        Evaluate the IGRF-13 field at a point.
+        Evaluate the IGRF field at a point.
 
         Parameters
         ----------
@@ -74,3 +77,15 @@ class IGRF13:
             self.igrf_coeffs, r_km, theta_deg, phi_deg, nmax=self.nmax
         )
         return np.array([Br, Btheta, Bphi]) * 1e-9  # nT → T
+
+
+class IGRF13(IGRF14):
+    """Deprecated alias of :class:`IGRF14` (gtracr now ships IGRF-14 only)."""
+
+    def __init__(self, curr_year, nmax=None):
+        warnings.warn(
+            "IGRF13 is deprecated and evaluates IGRF-14; use IGRF14",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(curr_year, nmax=nmax)

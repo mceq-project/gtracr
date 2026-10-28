@@ -15,6 +15,7 @@ from gtracr.constants import (
     RAD_PER_DEG,
     SOLVER_CHARS,
 )
+from gtracr.escape import resolve_escape_scaling, set_escape_scaling
 from gtracr.location import Location
 from gtracr.utils import location_dict, particle_dict, ymd_to_dec
 
@@ -27,7 +28,7 @@ class Trajectory:
 
     Constructs initial conditions from a particle type, arrival direction,
     energy or rigidity, and geographic location, then integrates the
-    relativistic Lorentz force equation in geocentric spherical coordinates.
+    relativistic Lorentz force equation in Cartesian coordinates.
 
     Parameters
     ----------
@@ -35,10 +36,12 @@ class Trajectory:
         Angle from local zenith in degrees. 0 = directly overhead,
         90 = horizontal, >90 = upward-moving (from other side of Earth).
     azimuth_angle : float
-        Angle from geographic north in the local tangent plane, in degrees.
-        0 = south, 90 = west, 180 = north, 270 = east.
+        Azimuth of the arrival direction (the direction the particle comes
+        from) in degrees, measured from geographic north, clockwise seen from
+        above: 0 = from north, 90 = from east, 180 = from south, 270 = from
+        west. See docs/conventions.md.
     energy : float, optional
-        Cosmic ray kinetic energy in GeV. Mutually exclusive with *rigidity*.
+        Cosmic ray total energy in GeV. Mutually exclusive with *rigidity*.
     rigidity : float, optional
         Cosmic ray rigidity (momentum / charge) in GV. Mutually exclusive
         with *energy*.
@@ -64,15 +67,27 @@ class Trajectory:
         Particle label: ``"p+"`` (default), ``"p-"``, ``"e+"``, ``"e-"``.
     escape_altitude : float, optional
         Radial distance (m) beyond which the particle is considered escaped
-        (default ``10 * EARTH_RADIUS``).
+        (default ``10 * EARTH_RADIUS``). With the rigidity-aware criterion
+        (``escape_factor``) this is a lower bound.
+    escape_factor, time_factor : float, optional
+        Rigidity-aware escape criterion of the C++ tracer: the escape radius is
+        ``max(escape_altitude, escape_factor * C_St)`` with the Störmer length
+        ``C_St = RE sqrt(B0 RE |q| / p)``, and the time budget is
+        ``max(max_time, time_factor * r_esc / (beta c))``. ``None`` uses the
+        package defaults (``gtracr.escape.DEFAULT_ESCAPE_FACTOR`` /
+        ``DEFAULT_TIME_FACTOR``); ``0, 0`` restores the fixed criterion. Not
+        used by the pure-Python tracer (``use_python=True``).
     solver : str, optional
         Integration method: ``"rk4"`` (default, frozen-field Runge-Kutta 4),
         ``"boris"`` (Boris pusher, ~30 %% faster), or ``"rk45"`` (adaptive
         Dormand-Prince).
     atol : float, optional
-        Absolute tolerance for the RK45 solver (default 1e-3).
+        Absolute tolerance for the RK45 solver (default 0). The error norm is
+        dimensionless: position errors in units of RE with tolerance
+        ``atol + rtol * r / RE``, momentum errors in units of |p| with
+        tolerance ``atol + rtol``.
     rtol : float, optional
-        Relative tolerance for the RK45 solver (default 1e-6).
+        Relative tolerance for the RK45 solver (default 1e-7).
 
     Attributes
     ----------
@@ -111,9 +126,14 @@ class Trajectory:
         plabel="p+",
         escape_altitude=10.0 * EARTH_RADIUS,
         solver="rk4",
-        atol=1e-3,
-        rtol=1e-6,
+        atol=0.0,
+        rtol=1e-7,
+        escape_factor=None,
+        time_factor=None,
     ):
+        resolve_escape_scaling(escape_factor, time_factor)  # validate
+        self.escape_factor = escape_factor
+        self.time_factor = time_factor
         self.zangle = zenith_angle
         self.azangle = azimuth_angle
         self.palt = particle_altitude * (1e3)  # convert to meters
@@ -254,6 +274,7 @@ class Trajectory:
                 self.atol,
                 self.rtol,
             )
+            set_escape_scaling(traj_tracer, self.escape_factor, self.time_factor)
 
         # set initial values
         particle_t0 = 0.0
@@ -364,10 +385,10 @@ class Trajectory:
         """Convert zenith/azimuth angles to a detector-frame Cartesian vector."""
         xi = self.zangle * RAD_PER_DEG
         alpha = self.azangle * RAD_PER_DEG
-        # Convention: azimuth=0 points south (Honda 2002); xt/yt are swapped
-        # from standard spherical so that north pole is at azimuth=180°.
+        # Arrival-direction azimuth from geographic north, clockwise (90 =
+        # from east); detector frame x = east, y = north, z = up.
         xt = magnitude * np.sin(xi) * np.sin(alpha)
-        yt = -magnitude * np.sin(xi) * np.cos(alpha)
+        yt = magnitude * np.sin(xi) * np.cos(alpha)
         zt = magnitude * np.cos(xi) + altitude
 
         return np.array([xt, yt, zt])

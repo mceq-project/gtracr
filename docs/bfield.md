@@ -5,7 +5,7 @@ All three share the same interface and can be used directly — for example,
 to query the field at a point or to drive the pure-Python fallback integrator.
 
 ```python
-from gtracr.bfield import MagneticField, IGRF13, IGRFTable
+from gtracr.bfield import MagneticField, IGRF14, IGRFTable
 ```
 
 ## Classes
@@ -23,28 +23,28 @@ bf = MagneticField()
 Br, Btheta, Bphi = bf.values(r=6.371e6, theta=1.0, phi=0.0)
 ```
 
-### `IGRF13` — spherical harmonic model
+### `IGRF14` — spherical harmonic model
 
-Full IGRF-13 evaluation up to degree 13 using time-interpolated
-Schmidt quasi-normalized coefficients (valid 1900–2025).
+Full IGRF-14 evaluation up to degree 13 using time-interpolated
+Schmidt quasi-normalized coefficients (valid 1900–2030).
 
 ```python
-from gtracr.bfield import IGRF13
+from gtracr.bfield import IGRF14
 from gtracr.utils import ymd_to_dec
 
-bf = IGRF13(curr_year=float(ymd_to_dec("2024-01-01")))
+bf = IGRF14(curr_year=float(ymd_to_dec("2024-01-01")))
 Br, Btheta, Bphi = bf.values(r=6.371e6, theta=1.0, phi=0.5)
 ```
 
 | Parameter | Description |
 |-----------|-------------|
 | `curr_year` | Decimal year for coefficient interpolation (e.g. `2024.5`). |
-| `nmax` | Truncation degree (default: 13, the maximum in IGRF-13). |
+| `nmax` | Truncation degree (default: 13, the maximum in IGRF-14). |
 
 ### `IGRFTable` — pre-computed lookup table
 
 Trilinear interpolation over a pre-computed 3D grid
-(64 × 128 × 256 in r, θ, φ). ~7x faster than `IGRF13` for repeated
+(64 × 128 × 256 in r, θ, φ). ~7x faster than `IGRF14` for repeated
 queries. Covers 1–10 Earth radii; the dipole approximation is used outside
 this range.
 
@@ -61,7 +61,7 @@ Br, Btheta, Bphi = bf.values(r=6.371e6, theta=1.0, phi=0.5)
 
 | Parameter | Description |
 |-----------|-------------|
-| `igrf_obj` | Optional pre-built C++ `IGRF` object. Built from `igrf13.json` if `None`. |
+| `igrf_obj` | Optional pre-built C++ `IGRF` object. Built from `igrf14.json` if `None`. |
 | `verbose` | Print progress while generating the table (default `False`). |
 
 ## Common interface

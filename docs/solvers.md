@@ -18,8 +18,8 @@ equation, all implemented in C++.
 Use **`"rk4"`** or **`"boris"`** with `bfield_type="igrf"`:
 
 - Fixed time steps produce regularly spaced output points, good for plotting.
-- Boris is faster and conserves energy better, but outputs Cartesian
-  internally (converted back to spherical).
+- All three solvers advance the state in Cartesian (ECEF) coordinates, which
+  are regular at the geographic poles, and report the spherical six-vector.
 - RK4 is the safe default.
 
 ### GMRC cutoff scanning
@@ -29,25 +29,34 @@ Use **`"rk45"`** with `bfield_type="table"`:
 - Adaptive stepping takes far fewer steps for escaping trajectories.
 - Combined with the tabulated IGRF (~7x faster field evaluation), this gives
   the highest throughput (~35k trajectories/s in batch mode).
-- Default tolerances (`atol=1e-3`, `rtol=1e-6`) work well for cutoff
-  determination.
+- Default tolerances (`atol=0`, `rtol=1e-7`) resolve cutoffs to the 0.5 %
+  ladder rung (see below).
 
 ### High-precision work
 
-For position accuracy comparable to RK4 at `dt=1e-5`, tighten the RK45
-tolerances:
+Tighten the RK45 tolerance:
 
 ```python
-traj = Trajectory(..., solver="rk45", atol=1e-6, rtol=1e-6)
+traj = Trajectory(..., solver="rk45", rtol=1e-9)
 ```
 
-## Tolerance tuning (RK45)
+## RK45 error norm and tolerances
+
+The RK45 step error is measured on the dimensionless state. Position errors are
+lengths in units of R_E, with tolerance `atol + rtol·r/R_E`. Momentum errors are
+in units of |p|, with tolerance `atol + rtol`. The norm is the RMS over the six
+components, applied to the error vectors, so it does not depend on the coordinate
+system.
+
+The error is measured on the dimensionless state (position / R_E,
+momentum / |p_0|), so `atol = 1e-3` allows ~6 km in position and 0.1 % in
+|p| per step.
 
 | `atol` | `rtol` | Use case |
 |--------|--------|----------|
-| `1e-3` | `1e-6` | Default — good for GMRC cutoff determination |
-| `1e-6` | `1e-6` | High precision — position accuracy matching RK4 at dt=1e-5 |
-| `1e-8` | `1e-8` | Reference solutions for validation |
+| `0` | `1e-6` | Coarser tolerance |
+| `0` | `1e-7` | Default tolerance |
+| `0` | `1e-10` | Reference solutions |
 
 ## Benchmarking solvers
 

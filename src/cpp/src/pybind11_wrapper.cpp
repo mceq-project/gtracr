@@ -24,10 +24,15 @@ PYBIND11_MODULE(_libgtracr, M) {
 
   // Standalone function: generate the IGRF lookup table once in Python,
   // return (numpy array, TableParams) so threads can share the table.
+  M.attr("DEFAULT_ESCAPE_FACTOR") = integrator_control::DEFAULT_ESCAPE_FACTOR;
+  M.attr("DEFAULT_TIME_FACTOR") = integrator_control::DEFAULT_TIME_FACTOR;
+  M.attr("DEFAULT_ATOL") = integrator_control::DEFAULT_ATOL;
+  M.attr("DEFAULT_RTOL") = integrator_control::DEFAULT_RTOL;
+
   M.def(
       "generate_igrf_table",
       [](const std::string& data_dir, double decimal_year) {
-        IGRF igrf(data_dir + "/igrf13.json", decimal_year);
+        IGRF igrf(data_dir + "/" + igrf_const::JSON_FILE, decimal_year);
         TableParams params;
         std::vector<float> table = generate_igrf_table(igrf, params);
 
@@ -64,11 +69,14 @@ PYBIND11_MODULE(_libgtracr, M) {
       .def_readwrite("n_samples", &BatchGMRCParams::n_samples)
       .def_readwrite("n_threads", &BatchGMRCParams::n_threads)
       .def_readwrite("max_attempts_factor", &BatchGMRCParams::max_attempts_factor)
-      .def_readwrite("base_seed", &BatchGMRCParams::base_seed);
+      .def_readwrite("base_seed", &BatchGMRCParams::base_seed)
+      .def_readwrite("escape_factor", &BatchGMRCParams::escape_factor)
+      .def_readwrite("time_factor", &BatchGMRCParams::time_factor);
 
   // Bind batch_gmrc_evaluate: takes numpy table (or None for direct IGRF),
   // TableParams, igrf_params, BatchGMRCParams.
-  // Returns (zenith, azimuth, rcutoff, total_trajectories).
+  // Returns (zenith, azimuth, rcutoff, above_max, total_trajectories);
+  // above_max is a bool array, True where the cutoff exceeds max_rigidity.
   M.def(
       "batch_gmrc_evaluate",
       [](py::object shared_table_obj, const TableParams& table_params,
@@ -99,11 +107,80 @@ PYBIND11_MODULE(_libgtracr, M) {
                                      free_when_done);
         };
 
-        return py::make_tuple(make_array(std::move(result.zenith)),
-                              make_array(std::move(result.azimuth)),
-                              make_array(std::move(result.rcutoff)), result.total_trajectories);
+        py::array_t<bool> above_max(static_cast<py::ssize_t>(result.above_max.size()));
+        auto above_max_view = above_max.mutable_unchecked<1>();
+        for (py::ssize_t i = 0; i < above_max_view.shape(0); ++i) {
+          above_max_view(i) = result.above_max[static_cast<size_t>(i)] != 0;
+        }
+
+        return py::make_tuple(
+            make_array(std::move(result.zenith)), make_array(std::move(result.azimuth)),
+            make_array(std::move(result.rcutoff)), above_max, result.total_trajectories);
       },
       py::arg("shared_table"), py::arg("table_params"), py::arg("igrf_params"), py::arg("params"));
+
+  py::class_<PenumbraParams>(M, "PenumbraParams", py::module_local())
+      .def(py::init<>())
+      .def_readwrite("r_lo", &PenumbraParams::r_lo)
+      .def_readwrite("r_hi", &PenumbraParams::r_hi)
+      .def_readwrite("delta", &PenumbraParams::delta)
+      .def_readwrite("coarse", &PenumbraParams::coarse)
+      .def_readwrite("guard", &PenumbraParams::guard)
+      .def_readwrite("store_ladder", &PenumbraParams::store_ladder);
+
+  // Bind batch_gmrc_penumbra. Returns a dict with zenith, azimuth, r_lower, r_upper, r_eff,
+  // flag, ladder, total_trajectories and (if store_ladder) allowed of shape (n, K).
+  M.def(
+      "batch_gmrc_penumbra",
+      [](py::object shared_table_obj, const TableParams& table_params,
+         const std::pair<std::string, double>& igrf_params, const BatchGMRCParams& params,
+         const PenumbraParams& pparams, std::vector<double> zenith, std::vector<double> azimuth) {
+        if (zenith.size() != azimuth.size())
+          throw std::invalid_argument("zenith and azimuth must have the same length");
+        if (!(pparams.r_lo > 0.0) || !(pparams.r_hi > pparams.r_lo) || !(pparams.delta > 0.0))
+          throw std::invalid_argument("penumbra ladder needs 0 < r_lo < r_hi and delta > 0");
+        py::array_t<float, py::array::c_style | py::array::forcecast> shared_table;
+        const float* tbl_ptr = nullptr;
+        if (!shared_table_obj.is_none()) {
+          shared_table = shared_table_obj
+                             .cast<py::array_t<float, py::array::c_style | py::array::forcecast>>();
+          tbl_ptr = shared_table.data();
+        }
+        if (params.bfield_type == 't' && tbl_ptr == nullptr)
+          throw std::invalid_argument("bfield_type 't' requires a shared table");
+
+        PenumbraResult r;
+        {
+          py::gil_scoped_release release;
+          r = batch_gmrc_penumbra(tbl_ptr, table_params, igrf_params, params, pparams, zenith,
+                                  azimuth);
+        }
+        auto arr = [](const auto& v) {
+          using T = typename std::decay_t<decltype(v)>::value_type;
+          py::array_t<T> a(static_cast<py::ssize_t>(v.size()));
+          std::copy(v.begin(), v.end(), a.mutable_data());
+          return a;
+        };
+        py::dict d;
+        d["zenith"] = arr(r.zenith);
+        d["azimuth"] = arr(r.azimuth);
+        d["r_lower"] = arr(r.r_lower);
+        d["r_upper"] = arr(r.r_upper);
+        d["r_eff"] = arr(r.r_eff);
+        d["flag"] = arr(r.flag);
+        d["ladder"] = arr(r.ladder);
+        d["total_trajectories"] = r.total_trajectories;
+        if (pparams.store_ladder) {
+          py::array_t<bool> a({static_cast<py::ssize_t>(r.zenith.size()),
+                               static_cast<py::ssize_t>(r.ladder.size())});
+          std::copy(r.allowed.begin(), r.allowed.end(), a.mutable_data());
+          d["allowed"] = a;
+        }
+        return d;
+      },
+      py::arg("shared_table"), py::arg("table_params"), py::arg("igrf_params"), py::arg("params"),
+      py::arg("penumbra_params"), py::arg("zenith") = std::vector<double>{},
+      py::arg("azimuth") = std::vector<double>{});
 
   py::class_<TrajectoryTracer>(M, "TrajectoryTracer", py::module_local())
       .def(py::init<>())
@@ -115,7 +192,8 @@ PYBIND11_MODULE(_libgtracr, M) {
            py::arg("escape_radius") = 10. * 6371.2e3, py::arg("stepsize") = 1e-5,
            py::arg("max_iter") = 10000, py::arg("bfield_type") = 'i',
            py::arg("igrf_params") = std::pair<std::string, double>{"", 2020.},
-           py::arg("solver_type") = 'r', py::arg("atol") = 1e-3, py::arg("rtol") = 1e-6)
+           py::arg("solver_type") = 'r', py::arg("atol") = integrator_control::DEFAULT_ATOL,
+           py::arg("rtol") = integrator_control::DEFAULT_RTOL)
       // Shared-table constructor: borrows a numpy array as the IGRF table.
       .def(py::init([](py::array_t<float, py::array::c_style | py::array::forcecast> shared_table,
                        const TableParams& table_params, double charge, double mass,
@@ -130,7 +208,8 @@ PYBIND11_MODULE(_libgtracr, M) {
            py::arg("shared_table"), py::arg("table_params"), py::arg("charge"), py::arg("mass"),
            py::arg("start_altitude"), py::arg("escape_radius"), py::arg("stepsize"),
            py::arg("max_iter"), py::arg("igrf_params"), py::arg("solver_type") = 'r',
-           py::arg("atol") = 1e-3, py::arg("rtol") = 1e-6,
+           py::arg("atol") = integrator_control::DEFAULT_ATOL,
+           py::arg("rtol") = integrator_control::DEFAULT_RTOL,
            // prevent the numpy array from being garbage-collected while tracer lives
            py::keep_alive<1, 2>())
       .def_property_readonly("charge", &TrajectoryTracer::charge)
@@ -144,6 +223,15 @@ PYBIND11_MODULE(_libgtracr, M) {
       .def_property_readonly("final_sixvector", &TrajectoryTracer::final_sixvector)
       .def_property_readonly("nsteps", &TrajectoryTracer::nsteps)
       .def_property_readonly("solver_type", &TrajectoryTracer::solver_type)
+      .def_property_readonly("escape_factor", &TrajectoryTracer::escape_factor)
+      .def_property_readonly("time_factor", &TrajectoryTracer::time_factor)
+      .def_property_readonly("run_escape_radius", &TrajectoryTracer::run_escape_radius)
+      .def_property_readonly("run_max_time", &TrajectoryTracer::run_max_time)
+      .def_property_readonly("run_max_iter", &TrajectoryTracer::run_max_iter)
+      .def("dipole_b0", &TrajectoryTracer::dipole_b0)
+      .def("stormer_length", &TrajectoryTracer::stormer_length, py::arg("momentum"))
+      .def("set_escape_scaling", &TrajectoryTracer::set_escape_scaling, py::arg("escape_factor"),
+           py::arg("time_factor"))
       .def("reset", &TrajectoryTracer::reset, py::call_guard<py::gil_scoped_release>())
       .def("set_start_altitude", &TrajectoryTracer::set_start_altitude,
            py::call_guard<py::gil_scoped_release>())

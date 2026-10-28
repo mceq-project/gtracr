@@ -56,7 +56,7 @@ def test_pydipole():
 
 def test_pyigrf():
     """Test the IGRF model in the Python version."""
-    from gtracr.bfield.igrf import IGRF13
+    from gtracr.bfield.igrf import IGRF14
 
     expected_bmag = [
         3.42851920e-05,
@@ -71,7 +71,7 @@ def test_pyigrf():
         2.67410913e-07,
     ]
 
-    pyigrf = IGRF13(CURRENT_YEAR)
+    pyigrf = IGRF14(CURRENT_YEAR)
 
     for iexp, coord in enumerate(coord_list):
         bf_values = pyigrf.values(*coord)
@@ -123,7 +123,7 @@ def test_igrf():
     """
     from gtracr._libgtracr import IGRF
 
-    DATA_PATH = str(DATA_DIR / "igrf13.json")
+    DATA_PATH = str(DATA_DIR / "igrf14.json")
 
     igrf = IGRF(DATA_PATH, CURRENT_YEAR)
 

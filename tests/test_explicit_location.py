@@ -34,7 +34,7 @@ def test_batch_uses_explicit_coordinates(monkeypatch):
 
     def evaluate(table, params, igrf, p):
         captured.update(lat=p.latitude, lon=p.longitude, altitude=p.detector_alt)
-        return np.array([0.0]), np.array([0.0]), np.array([5.0]), 1
+        return np.array([0.0]), np.array([0.0]), np.array([5.0]), np.array([False]), 1
 
     monkeypatch.setattr(lib, "batch_gmrc_evaluate", evaluate)
     loc = Location("Kamioka", 32.1, -80.7, 0.005)

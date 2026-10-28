@@ -40,7 +40,7 @@ def test_boris_escaped_high_rigidity():
     """50 GV proton at zenith should escape with Boris solver"""
     traj = Trajectory(
         zenith_angle=0.0,
-        azimuth_angle=0.0,
+        azimuth_angle=180.0,
         rigidity=50.0,
         latitude=0.0,
         longitude=0.0,
@@ -55,7 +55,7 @@ def test_boris_forbidden_low_rigidity():
     """0.1 GV proton at equator should not escape with Boris solver"""
     traj = Trajectory(
         zenith_angle=0.0,
-        azimuth_angle=0.0,
+        azimuth_angle=180.0,
         rigidity=0.1,
         latitude=0.0,
         longitude=0.0,
@@ -88,7 +88,7 @@ def test_boris_consistent_with_rk4():
     """Boris and RK4 should agree on escaped/forbidden for the same trajectory"""
     kwargs = dict(
         zenith_angle=0.0,
-        azimuth_angle=0.0,
+        azimuth_angle=180.0,
         rigidity=50.0,
         latitude=0.0,
         longitude=0.0,
@@ -117,7 +117,7 @@ def test_rk45_escaped_high_rigidity():
     """50 GV proton at zenith should escape with RK45 solver"""
     traj = Trajectory(
         zenith_angle=0.0,
-        azimuth_angle=0.0,
+        azimuth_angle=180.0,
         rigidity=50.0,
         latitude=0.0,
         longitude=0.0,
@@ -134,7 +134,7 @@ def test_rk45_forbidden_low_rigidity():
     """0.1 GV proton at equator should not escape with RK45 solver"""
     traj = Trajectory(
         zenith_angle=0.0,
-        azimuth_angle=0.0,
+        azimuth_angle=180.0,
         rigidity=0.1,
         latitude=0.0,
         longitude=0.0,
@@ -173,7 +173,7 @@ def test_rk45_consistent_with_rk4():
     """RK45 and RK4 should agree on escaped/forbidden for the same trajectory"""
     kwargs = dict(
         zenith_angle=0.0,
-        azimuth_angle=0.0,
+        azimuth_angle=180.0,
         rigidity=50.0,
         latitude=0.0,
         longitude=0.0,
@@ -228,7 +228,7 @@ def test_igrf_table_field_accuracy():
 
     data_dir = str(Path(__file__).parent.parent / "src" / "gtracr" / "data")
 
-    igrf = IGRF(str(Path(data_dir) / "igrf13.json"), 2020.0)
+    igrf = IGRF(str(Path(data_dir) / "igrf14.json"), 2020.0)
 
     r = EARTH_RADIUS + 100e3  # 100 km altitude
     theta = np.pi / 2.0  # equator

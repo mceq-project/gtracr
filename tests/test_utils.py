@@ -2,6 +2,7 @@
 Tests for gtracr/utils.py
 """
 
+import numpy as np
 import pytest
 
 from gtracr.utils import dec_to_dms, location_dict, particle_dict, ymd_to_dec
@@ -71,6 +72,44 @@ def test_location_dict_contents():
     ]
     for name in expected_locations:
         assert name in location_dict, f"Location '{name}' not found in location_dict"
+
+
+# (latitude, longitude, altitude [km]) of every predefined site. CTA-South is
+# the CTAO-South array centre, 24°41'0.34"S 70°18'58.84"W (ctao.org).
+EXPECTED_SITE_COORDINATES = {
+    "Kamioka": (36.434800, 137.276599, 0.0),
+    "IceCube": (-89.99, 0.0, 0.0),
+    "SNOLAB": (46.471983, -81.186701, 0.0),
+    "UofA": (53.523230, -113.526319, 0.0),
+    "CTA-North": (28.76216, -17.89201, 0.0),
+    "CTA-South": (-24.68342778, -70.31634444, 0.0),
+    "ORCA": (42.80000000, 6.0333333, 0.0),
+    "ANTARES": (42.8, 6.1666666, 0.0),
+    "Baikal-GVD": (51.77139, 104.3978, 0.0),
+    "TA": (39.208099, -113.121285, 0.0),
+}
+
+
+@pytest.mark.parametrize("name", sorted(EXPECTED_SITE_COORDINATES))
+def test_location_dict_coordinates(name):
+    """Pin the coordinates of every predefined site (regression for #23)."""
+    loc = location_dict[name]
+    lat, lng, alt = EXPECTED_SITE_COORDINATES[name]
+    assert loc.latitude == pytest.approx(lat, abs=1e-8)
+    assert loc.longitude == pytest.approx(lng, abs=1e-8)
+    assert loc.altitude == pytest.approx(alt, abs=1e-8)
+    assert -90.0 <= loc.latitude <= 90.0 and -180.0 <= loc.longitude <= 180.0
+
+
+def test_cta_south_near_paranal():
+    """CTAO-South lies < 10 km SE of ESO Paranal (24°37'38"S 70°24'15"W)."""
+    loc = location_dict["CTA-South"]
+    par_lat, par_lng = -(24 + 37 / 60 + 38 / 3600), -(70 + 24 / 60 + 15 / 3600)
+    dlat = np.radians(loc.latitude - par_lat)
+    dlng = np.radians(loc.longitude - par_lng) * np.cos(np.radians(par_lat))
+    dist_km = 6371.0 * np.hypot(dlat, dlng)
+    assert dist_km < 15.0
+    assert loc.latitude < par_lat and loc.longitude > par_lng  # south-east
 
 
 def test_particle_dict_contents():

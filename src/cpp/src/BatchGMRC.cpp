@@ -7,6 +7,7 @@
 
 #include "BatchGMRC.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdio>
@@ -73,8 +74,10 @@ static void get_particle_coord(double zenith_deg, double azimuth_deg, double alt
   const double xi = zenith_deg * constants::DEG_TO_RAD;
   const double alpha = azimuth_deg * constants::DEG_TO_RAD;
 
+  // Arrival-direction azimuth from geographic north, clockwise (90 = from
+  // east); detector frame x = east, y = north, z = up.
   xt = magnitude * std::sin(xi) * std::sin(alpha);
-  yt = -magnitude * std::sin(xi) * std::cos(alpha);
+  yt = magnitude * std::sin(xi) * std::cos(alpha);
   zt = magnitude * std::cos(xi) + altitude;
 }
 
@@ -214,6 +217,7 @@ static double find_cutoff_rigidity_bisect(
 
 struct WorkerResult {
   std::vector<double> zenith, azimuth, rcutoff;
+  std::vector<uint8_t> above_max;
   int64_t n_trajectories = 0;
 };
 
@@ -224,7 +228,8 @@ static WorkerResult thread_worker(const float* shared_table, const TableParams& 
                                   double ref_momentum_gevc, double mom_factor, double charge_si,
                                   double mass_si, double escape_radius, double dt, int max_step,
                                   char solver_type, char bfield_type, double atol, double rtol,
-                                  int quota, int max_attempts, uint64_t seed,
+                                  double escape_factor, double time_factor, int quota,
+                                  int max_attempts, uint64_t seed,
                                   const std::atomic<bool>* stop_flag, int thread_id) {
 #ifdef GTRACR_DEBUG_PRINT
   std::fprintf(stderr,
@@ -238,6 +243,7 @@ static WorkerResult thread_worker(const float* shared_table, const TableParams& 
   result.zenith.reserve(quota);
   result.azimuth.reserve(quota);
   result.rcutoff.reserve(quota);
+  result.above_max.reserve(quota);
 
   std::mt19937_64 rng(seed);
   std::uniform_real_distribution<double> dist_az(0.0, 360.0);
@@ -245,11 +251,11 @@ static WorkerResult thread_worker(const float* shared_table, const TableParams& 
 
   // Build thread-local TrajectoryTracer.
   // Each thread owns its own IGRF instance (IGRF::values is not thread-safe).
-  // For 'i' (direct IGRF): use the regular constructor with bfield_type='i'.
-  // For 't' (table):       use the shared-table constructor.
+  // For 'i' (direct IGRF) / 'd' (dipole): use the regular constructor.
+  // For 't' (table):                      use the shared-table constructor.
   auto make_tracer = [&]() -> TrajectoryTracer {
-    if (bfield_type == 'i') {
-      return TrajectoryTracer(charge_si, mass_si, 0.0, escape_radius, dt, max_step, 'i',
+    if (bfield_type == 'i' || bfield_type == 'd') {
+      return TrajectoryTracer(charge_si, mass_si, 0.0, escape_radius, dt, max_step, bfield_type,
                               igrf_params, solver_type, atol, rtol);
     } else {
       return TrajectoryTracer(shared_table, table_params, charge_si, mass_si, 0.0, escape_radius,
@@ -257,6 +263,7 @@ static WorkerResult thread_worker(const float* shared_table, const TableParams& 
     }
   };
   TrajectoryTracer tracer = make_tracer();
+  tracer.set_escape_scaling(escape_factor, time_factor);
 
 #ifdef GTRACR_DEBUG_PRINT
   std::fprintf(stderr, "[Thread %d] TrajectoryTracer constructed\n", thread_id);
@@ -293,12 +300,15 @@ static WorkerResult thread_worker(const float* shared_table, const TableParams& 
     double rc = find_cutoff_rigidity_bisect(tracer, ic.pos, ic.mom_unit, rigidities_asc, mom_factor,
                                             result.n_trajectories);
 
-    if (rc > 0.0) {
-      result.zenith.push_back(zenith);
-      result.azimuth.push_back(azimuth);
-      result.rcutoff.push_back(rc);
-      ++successes;
-    }
+    // rc == 0: no tested rigidity escaped, so the cutoff exceeds
+    // max_rigidity. Keep the direction (dropping it would bias the sky map
+    // toward low cutoffs) with max_rigidity as a lower bound, flagged.
+    const bool above_max = !(rc > 0.0);
+    result.zenith.push_back(zenith);
+    result.azimuth.push_back(azimuth);
+    result.rcutoff.push_back(above_max ? rigidities_asc.back() : rc);
+    result.above_max.push_back(above_max ? 1 : 0);
+    ++successes;
   }
 
 #ifdef GTRACR_DEBUG_PRINT
@@ -370,11 +380,11 @@ BatchGMRCResult batch_gmrc_evaluate(const float* shared_table, const TableParams
     uint64_t seed = params.base_seed + static_cast<uint64_t>(t) * 1000003ULL;
 
     threads[t] = std::thread([&, t, quota, max_attempts, seed]() {
-      results[t] =
-          thread_worker(shared_table, table_params, igrf_params, ctx, rigidities_asc,
-                        ref_momentum_gevc, mom_factor, charge_si, mass_si, params.escape_radius,
-                        params.dt, max_step, params.solver_type, params.bfield_type, params.atol,
-                        params.rtol, quota, max_attempts, seed, params.stop_flag, t);
+      results[t] = thread_worker(
+          shared_table, table_params, igrf_params, ctx, rigidities_asc, ref_momentum_gevc,
+          mom_factor, charge_si, mass_si, params.escape_radius, params.dt, max_step,
+          params.solver_type, params.bfield_type, params.atol, params.rtol, params.escape_factor,
+          params.time_factor, quota, max_attempts, seed, params.stop_flag, t);
     });
   }
 
@@ -394,12 +404,193 @@ BatchGMRCResult batch_gmrc_evaluate(const float* shared_table, const TableParams
   output.zenith.reserve(total);
   output.azimuth.reserve(total);
   output.rcutoff.reserve(total);
+  output.above_max.reserve(total);
 
   for (auto& r : results) {
     output.zenith.insert(output.zenith.end(), r.zenith.begin(), r.zenith.end());
     output.azimuth.insert(output.azimuth.end(), r.azimuth.begin(), r.azimuth.end());
     output.rcutoff.insert(output.rcutoff.end(), r.rcutoff.begin(), r.rcutoff.end());
+    output.above_max.insert(output.above_max.end(), r.above_max.begin(), r.above_max.end());
   }
 
   return output;
+}
+
+// =========================================================================
+// E. Penumbra-resolving scan (Cooke et al. 1991)
+// =========================================================================
+
+struct Ladder {
+  std::vector<double> centre, lo, hi;
+};
+
+static Ladder build_ladder(double r_lo, double r_hi, double delta) {
+  Ladder L;
+  const double q = 1.0 + delta;
+  const int n = static_cast<int>(std::ceil(std::log(r_hi / r_lo) / std::log(q))) + 1;
+  const double sq = std::sqrt(q);
+  L.centre.resize(n);
+  L.lo.resize(n);
+  L.hi.resize(n);
+  // shared edges, so that hi[k] == lo[k + 1] exactly
+  for (int k = 0; k < n; ++k) {
+    L.centre[k] = r_lo * std::pow(q, k);
+    L.lo[k] = k > 0 ? L.hi[k - 1] : r_lo / sq;
+    L.hi[k] = r_lo * sq * std::pow(q, k);
+  }
+  return L;
+}
+
+// Fills allowed[0..K-1] (1 = escapes) for one direction with the adaptive scan.
+static void penumbra_scan(TrajectoryTracer& tracer, const std::array<double, 3>& pos,
+                          const std::array<double, 3>& mom_unit, const std::vector<double>& rk,
+                          double mom_factor, int coarse, int guard, uint8_t* allowed,
+                          int64_t& n_evals) {
+  const int K = static_cast<int>(rk.size());
+  auto escapes = [&](int k) -> uint8_t {
+    const double mom_si = rk[k] * mom_factor;
+    std::array<double, 6> vec0 = {
+        {pos[0], pos[1], pos[2], mom_unit[0] * mom_si, mom_unit[1] * mom_si, mom_unit[2] * mom_si}};
+    tracer.reset();
+    tracer.evaluate(0.0, vec0);
+    ++n_evals;
+    return tracer.particle_escaped() ? 1 : 0;
+  };
+
+  if (coarse < 1) coarse = 1;
+  if (guard < 0) guard = 0;
+  // Coarse rungs: K-1, K-1-coarse, ..., and always rung 0; ascending order.
+  std::vector<int> ic;
+  for (int k = K - 1; k >= 0; k -= coarse) ic.push_back(k);
+  if (ic.back() != 0) ic.push_back(0);
+  std::reverse(ic.begin(), ic.end());
+  for (int k : ic) allowed[k] = escapes(k);
+
+  const int nint = static_cast<int>(ic.size()) - 1;
+  std::vector<char> refine(std::max(nint, 0), 0);
+  for (int c = 0; c < nint; ++c) {
+    if (allowed[ic[c]] != allowed[ic[c + 1]]) {
+      for (int j = std::max(0, c - guard); j <= std::min(nint - 1, c + guard); ++j) refine[j] = 1;
+    }
+  }
+  for (int j = 0; j < nint; ++j) {
+    for (int k = ic[j] + 1; k < ic[j + 1]; ++k) {
+      allowed[k] = refine[j] ? escapes(k) : allowed[ic[j]];
+    }
+  }
+}
+
+static void summarize_ladder(const uint8_t* allowed, const Ladder& L, double& r_lower,
+                             double& r_upper, double& r_eff, int32_t& flag) {
+  const int K = static_cast<int>(L.centre.size());
+  int iu = -1;  // highest forbidden rung
+  int il = -1;  // lowest allowed rung
+  double forbidden_width = 0.0;
+  for (int k = 0; k < K; ++k) {
+    if (allowed[k]) {
+      if (il < 0) il = k;
+    } else {
+      iu = k;
+      forbidden_width += L.hi[k] - L.lo[k];
+    }
+  }
+  flag = 0;
+  if (iu < 0) {  // nothing forbidden: cutoff below the ladder
+    flag = 1;
+    r_lower = r_upper = r_eff = L.lo[0];
+    return;
+  }
+  if (iu == K - 1) flag = 2;  // top rung forbidden: cutoff at or above the ladder top
+  r_upper = L.hi[iu];
+  r_lower = il >= 0 ? L.lo[il] : L.hi[K - 1];
+  // equal to R_L (or R_U) without a penumbra; clamp the rounding of the sum
+  r_eff = std::min(std::max(L.lo[0] + forbidden_width, r_lower), r_upper);
+}
+
+PenumbraResult batch_gmrc_penumbra(const float* shared_table, const TableParams& table_params,
+                                   const std::pair<std::string, double>& igrf_params,
+                                   const BatchGMRCParams& params, const PenumbraParams& pparams,
+                                   const std::vector<double>& zenith_in,
+                                   const std::vector<double>& azimuth_in) {
+  TransformContext ctx = build_transform_context(params.latitude, params.longitude,
+                                                 params.detector_alt, params.particle_alt);
+  const Ladder L = build_ladder(pparams.r_lo, pparams.r_hi, pparams.delta);
+  const int K = static_cast<int>(L.centre.size());
+
+  // Directions
+  PenumbraResult out;
+  if (!zenith_in.empty()) {
+    out.zenith = zenith_in;
+    out.azimuth = azimuth_in;
+  } else {
+    // Same per-thread seeding as batch_gmrc_evaluate, but every draw is kept.
+    out.zenith.resize(params.n_samples);
+    out.azimuth.resize(params.n_samples);
+    std::mt19937_64 rng(params.base_seed);
+    std::uniform_real_distribution<double> dist_az(0.0, 360.0);
+    std::uniform_real_distribution<double> dist_zen(0.0, 180.0);
+    for (int i = 0; i < params.n_samples; ++i) {
+      out.azimuth[i] = dist_az(rng);
+      out.zenith[i] = dist_zen(rng);
+    }
+  }
+  const int n = static_cast<int>(out.zenith.size());
+
+  out.ladder = L.centre;
+  out.r_lower.resize(n);
+  out.r_upper.resize(n);
+  out.r_eff.resize(n);
+  out.flag.resize(n, -1);  // -1 = not evaluated (cancelled)
+  std::vector<uint8_t> allowed(static_cast<size_t>(n) * K);
+
+  const double charge_abs = std::abs(params.charge);
+  const double ref_momentum_gevc = L.hi[K - 1] * charge_abs;  // only sets the IC direction
+  const double mom_factor = charge_abs * constants::KG_M_S_PER_GEVC;
+  const double charge_si = params.charge * constants::ELEMENTARY_CHARGE;
+  const double mass_si = params.mass * constants::KG_PER_GEVC2;
+  const int max_step = static_cast<int>(std::ceil(params.max_time / params.dt));
+
+  int n_threads = params.n_threads;
+  if (n_threads <= 0) {
+    n_threads = static_cast<int>(std::thread::hardware_concurrency());
+    if (n_threads <= 0) n_threads = 1;
+  }
+  n_threads = std::max(1, std::min(n_threads, n));
+
+  // Dynamic work distribution: directions differ strongly in cost.
+  std::atomic<int> next{0};
+  std::vector<int64_t> n_evals(n_threads, 0);
+  std::vector<std::thread> threads(n_threads);
+  for (int t = 0; t < n_threads; ++t) {
+    threads[t] = std::thread([&, t]() {
+      auto make_tracer = [&]() -> TrajectoryTracer {
+        if (params.bfield_type == 'i' || params.bfield_type == 'd') {
+          return TrajectoryTracer(charge_si, mass_si, 0.0, params.escape_radius, params.dt,
+                                  max_step, params.bfield_type, igrf_params, params.solver_type,
+                                  params.atol, params.rtol);
+        }
+        return TrajectoryTracer(shared_table, table_params, charge_si, mass_si, 0.0,
+                                params.escape_radius, params.dt, max_step, igrf_params,
+                                params.solver_type, params.atol, params.rtol);
+      };
+      TrajectoryTracer tracer = make_tracer();
+      tracer.set_escape_scaling(params.escape_factor, params.time_factor);
+      int i;
+      while ((i = next.fetch_add(1)) < n) {
+        if (params.stop_flag && params.stop_flag->load(std::memory_order_relaxed)) break;
+        DirectionIC ic =
+            compute_direction_ic(ctx, out.zenith[i], out.azimuth[i], ref_momentum_gevc);
+        tracer.set_start_altitude(ic.start_altitude);
+        uint8_t* a = allowed.data() + static_cast<size_t>(i) * K;
+        penumbra_scan(tracer, ic.pos, ic.mom_unit, L.centre, mom_factor, pparams.coarse,
+                      pparams.guard, a, n_evals[t]);
+        summarize_ladder(a, L, out.r_lower[i], out.r_upper[i], out.r_eff[i], out.flag[i]);
+      }
+    });
+  }
+  for (auto& th : threads) th.join();
+
+  for (auto v : n_evals) out.total_trajectories += v;
+  if (pparams.store_ladder) out.allowed = std::move(allowed);
+  return out;
 }

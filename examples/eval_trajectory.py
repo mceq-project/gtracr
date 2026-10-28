@@ -110,7 +110,7 @@ if __name__ == "__main__":
         "--azimuth",
         type=float,
         default=0.0,
-        help="Azimuth angle in degrees (default: 0.0).",
+        help="Arrival azimuth in degrees from north, clockwise (default: 0.0).",
     )
     parser.add_argument(
         "--solver",

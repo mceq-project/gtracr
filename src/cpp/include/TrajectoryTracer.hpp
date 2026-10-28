@@ -15,6 +15,7 @@ by performing numerical integration of the relativistic Lorentz force ODE.
 #include <utility>
 #include <vector>
 
+#include "IntegratorControl.hpp"
 #include "MagneticField.hpp"
 #include "constants.hpp"
 #include "igrf.hpp"
@@ -49,13 +50,12 @@ class TrajectoryTracer {
   double final_time_;
   std::array<double, 6> final_sixvector_;
 
-  // ODE right-hand side using a pre-evaluated B-field (frozen-field approximation).
-  std::array<double, 6> ode_lrz_bf(const double t, const std::array<double, 6>& vec,
-                                   const std::array<double, 3>& bf);
-
-  // ODE right-hand side that evaluates the B-field internally (used by RK45 stages).
-  // Delegates to ode_lrz_bf; exists so RK45 can call a single-argument variant.
-  std::array<double, 6> ode_lrz(const double t, const std::array<double, 6>& vec);
+  // Rigidity-aware escape criterion (IntegratorControl.hpp, set_escape_scaling).
+  double escape_factor_{integrator_control::DEFAULT_ESCAPE_FACTOR};
+  double time_factor_{integrator_control::DEFAULT_TIME_FACTOR};
+  double dipole_b0_{-1.};  // tesla; computed lazily from the field model
+  integrator_control::RunLimits run_limits_{0., 0., 0};
+  void prepare_run(const std::array<double, 6>& vec0);
 
   // --------------------------------------------------------------------------
   // Optional trajectory recorder passed to the run_*<Record> templates.
@@ -112,6 +112,10 @@ class TrajectoryTracer {
       std::vector<double>& pphi_arr);
 
  public:
+  // Defaults of the rigidity-aware escape criterion (set_escape_scaling).
+  static constexpr double DEFAULT_ESCAPE_FACTOR = integrator_control::DEFAULT_ESCAPE_FACTOR;
+  static constexpr double DEFAULT_TIME_FACTOR = integrator_control::DEFAULT_TIME_FACTOR;
+
   TrajectoryTracer();
 
   // Full constructor.
@@ -125,7 +129,8 @@ class TrajectoryTracer {
                    double escape_radius = 10. * constants::RE, double stepsize = 1e-5,
                    int max_iter = 10000, const char bfield_type = 'i',
                    const std::pair<std::string, double>& igrf_params = {"", 2020.},
-                   const char solver_type = 'r', double atol = 1e-3, double rtol = 1e-6);
+                   const char solver_type = 'r', double atol = integrator_control::DEFAULT_ATOL,
+                   double rtol = integrator_control::DEFAULT_RTOL);
 
   // Shared-table constructor: borrows an external IGRF table instead of
   // generating its own.  Each tracer still owns its own IGRF object (needed
@@ -133,7 +138,8 @@ class TrajectoryTracer {
   TrajectoryTracer(const float* shared_table, const TableParams& table_params, double charge,
                    double mass, double start_altitude, double escape_radius, double stepsize,
                    int max_iter, const std::pair<std::string, double>& igrf_params,
-                   const char solver_type = 'r', double atol = 1e-3, double rtol = 1e-6);
+                   const char solver_type = 'r', double atol = integrator_control::DEFAULT_ATOL,
+                   double rtol = integrator_control::DEFAULT_RTOL);
 
   // Reset state for reuse (clears particle_escaped_ and nsteps_).
   void reset() {
@@ -150,6 +156,25 @@ class TrajectoryTracer {
   const double& mass() { return mass_; }
   const double& start_altitude() { return start_altitude_; }
   const double& escape_radius() { return escape_radius_; }
+
+  // Rigidity-aware escape criterion: escape_factor k scales the escape radius
+  // with the Störmer length, time_factor N sets the time budget to N escape
+  // radii of path. escape_radius and max_iter * stepsize remain lower bounds;
+  // k = N = 0 restores the fixed criterion.
+  void set_escape_scaling(double escape_factor, double time_factor) {
+    escape_factor_ = escape_factor;
+    time_factor_ = time_factor;
+  }
+  double escape_factor() const { return escape_factor_; }
+  double time_factor() const { return time_factor_; }
+  // Dipole strength B0 (tesla) of the active field model at r = RE.
+  double dipole_b0();
+  // Störmer length (m) for momentum p (kg m/s).
+  double stormer_length(double p);
+  // Escape radius (m), time budget (s) and step budget of the last run.
+  double run_escape_radius() const { return run_limits_.escape_radius; }
+  double run_max_time() const { return run_limits_.max_time; }
+  int run_max_iter() const { return run_limits_.max_iter; }
   const double& stepsize() { return stepsize_; }
   int max_iter() { return max_iter_; }
   bool particle_escaped() { return particle_escaped_; }

@@ -358,7 +358,7 @@ def plot_gmrc_scatter(
 
     fig, ax = plt.subplots(figsize=(12, 6), constrained_layout=True)
     sc = ax.scatter(azimuth_arr, zenith_arr, c=rcutoff_arr, s=3.0)
-    ax.set_xlabel("Azimuthal Angle [Degrees]")
+    ax.set_xlabel("Arrival azimuth from north, clockwise [deg]")
     ax.set_ylabel("Zenith Angle [Degrees]")
     ax.set_title(
         f"Geomagnetic Rigidity Cutoffs at {locname} for {plabel} with N = {iter_num}"
@@ -448,7 +448,7 @@ def plot_gmrc_heatmap(
     ax.set_xlim([0.0, 360.0])
     ax.set_ylim([180.0, 0.0])
 
-    ax.set_xlabel("Azimuthal Angle [Degrees]")
+    ax.set_xlabel("Arrival azimuth from north, clockwise [deg]")
     ax.set_ylabel("Zenith Angle [Degrees]")
     ax.set_title(f"Geomagnetic Rigidity Cutoffs at {locname} for {plabel}")
 
