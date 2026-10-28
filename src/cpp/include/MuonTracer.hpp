@@ -49,7 +49,7 @@ sums may differ at floating-point rounding level.
 
 namespace muon {
 
-// Constants copied bit-exact from the numpy reference (nu3d).
+// Muon transport constants.
 constexpr double M_MU = 0.1056583755;    // GeV
 constexpr double TAU_MU = 2.1969811e-6;  // s
 constexpr double C_CMS = 2.99792458e10;  // cm/s
@@ -106,8 +106,8 @@ class MuonField {
 // Atmosphere: 'n' none (vacuum), 'l' Linsley/CORSIKA US-Std layers,
 // 'u' uniform, 't' tabulated rho(h) with linear interpolation.
 // rho in g/cm^3 as a function of altitude h [cm] above the ground
-// sphere; zero above h_top.  Layer conventions replicate the numpy
-// reference exactly (uniform: rho0 for all h < h_top including h < 0;
+// sphere; zero above h_top.  Density is defined as follows:
+// (uniform: rho0 for all h < h_top including h < 0;
 // linsley/table: zero for h < 0).
 // ---------------------------------------------------------------------------
 class MuonAtmosphere {
@@ -166,7 +166,7 @@ struct MuTraceResult {
   double deposited = 0.0;
   // ground, stopped, faded, escaped, maxsteps
   std::array<double, 5> fate_w = {0, 0, 0, 0, 0};
-  double weight_audit = 0.0;  // deposited + sum(fate_w); == sum(w_in) - quirk
+  double weight_audit = 0.0;  // deposited + sum(fate_w)
 
   // bank ('b'): rows above w_thresh
   std::vector<double> bank_x, bank_phat, bank_e, bank_pol, bank_sig, bank_w;
@@ -191,7 +191,7 @@ struct TraceOptions {
   double ctl_loss = 0.05;       // fractional dE/E
   double ctl_decay = 0.05;      // fractional decay probability
   double ctl_path = 2e5;        // cm
-  bool decay_beta_one = false;  // pre-fix MCEq convention (1/(gamma c tau))
+  bool decay_beta_one = false;  // decay rate with beta set to one
   int n_threads = 0;            // 0 = hardware concurrency
 };
 

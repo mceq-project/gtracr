@@ -84,7 +84,7 @@ class MuonTracer:
         Decimal year for the ``"shell"`` field (default 2020.0).
     shell_grid : tuple of int
         (n_h, n_colat, n_lon) nodes of the ``"shell"`` table
-        (default (13, 91, 181), the nu3d gate-C0b-validated grid).
+        (default (13, 91, 181)).
     shell_h_max : float
         Radial extent of the ``"shell"`` table in cm (default 1.3e7,
         just above `h_escape`); queries outside clamp to the boundary.

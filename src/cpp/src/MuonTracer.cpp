@@ -1,11 +1,6 @@
 /*
 MuonTracer — batch atmospheric-muon transport (see MuonTracer.hpp).
 
-The per-step algebra replicates the numpy reference
-(mceq-em-integration nu3d/mutracer/tracer.py) exactly, in the same
-order: dt control -> RK4 (field re-evaluated per stage) -> decay
-deposit at the full-step midpoint -> MCS variance increment ->
-survival -> ground pullback -> fate checks.
 */
 
 #include "MuonTracer.hpp"
