@@ -46,9 +46,7 @@ The RK45 step error is measured on the dimensionless state. Position errors are
 lengths in units of R_E, with tolerance `atol + rtol·r/R_E`. Momentum errors are
 in units of |p|, with tolerance `atol + rtol`. The norm is the RMS over the six
 components, applied to the error vectors, so it does not depend on the coordinate
-system..
-
-
+system.
 
 The error is measured on the dimensionless state (position / R_E,
 momentum / |p_0|), so `atol = 1e-3` allows ~6 km in position and 0.1 % in
@@ -56,8 +54,8 @@ momentum / |p_0|), so `atol = 1e-3` allows ~6 km in position and 0.1 % in
 
 | `atol` | `rtol` | Use case |
 |--------|--------|----------|
-| `0` | `1e-6` | Quick maps (≤ 1 rung in R_eff) |
-| `0` | `1e-7` | Default: cutoffs converged on a 0.5 % ladder |
+| `0` | `1e-6` | Coarser tolerance |
+| `0` | `1e-7` | Default tolerance |
 | `0` | `1e-10` | Reference solutions |
 
 ## Benchmarking solvers
