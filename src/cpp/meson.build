@@ -8,6 +8,7 @@ py.extension_module(
   sources: [
     'src/TrajectoryTracer.cpp',
     'src/BatchGMRC.cpp',
+    'src/MuonTracer.cpp',
     'src/igrf.cpp',
     'src/pybind11_wrapper.cpp',
     'gpu/igrf_table.cpp',

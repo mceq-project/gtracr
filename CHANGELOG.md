@@ -39,6 +39,19 @@ New:
   and `TrajectoryTracer.set_escape_scaling`; logic in `IntegratorControl.hpp` and
   `gtracr.escape`.
 
+New features:
+
+- **MuonTracer ("mutracr")**: batch transport of atmospheric muons between
+  production and decay — RK4 with per-ray adaptive time steps, continuous
+  dE/dX loss, expected-decay weight deposition (deterministic, no Monte
+  Carlo), Fermi–Eyges MCS variance, and std::thread parallelism. Field
+  backends: uniform / dipole / IGRF-14 thin-shell table; atmospheres:
+  US-Std layers / uniform / tabulated (MSIS-ready). Deposit consumers:
+  bank, per-charge spectrum tally, angular tally. Includes the polarized
+  Michel mu → nu kernels, a vendored pure-numpy reference implementation
+  (`gtracr._mu_reference`) pinned by the test suite, and
+  `examples/eval_mutracr_benchmark.py`.
+
 Fixes:
 
 - Exact SI constants: the old 1 GeV/c = 5.36e-19 kg m/s with e = 1.602e-19 C

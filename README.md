@@ -13,6 +13,10 @@ and computes geomagnetic rigidity cutoffs (GMRC).
   (~100x fewer steps for escaping trajectories)
 - **C++ batch mode** — entire GMRC Monte Carlo loop in C++ with std::thread
   parallelism (~35k trajectories/s)
+- **Muon transport ("mutracr")** — deterministic batch transport of
+  atmospheric muons between production and decay (dE/dX loss, expected-decay
+  deposits, MCS variance; ~800k rays/s on 32 cores) — see
+  [docs/mutracr.md](docs/mutracr.md)
 - **10 predefined locations** — Kamioka, IceCube, SNOLAB, and more
 
 ## Installation
