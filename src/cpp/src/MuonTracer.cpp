@@ -448,6 +448,18 @@ void MuonTracer::trace_range(std::size_t i0, std::size_t i1, const std::vector<d
         p1[j] = p[j] + dt / 6.0 * (k1p[j] + 2.0 * k2p[j] + 2.0 * k3p[j] + k4p[j]);
       }
 
+      const double r0n = norm3(x);
+      const double r1n = norm3(x1);
+      const bool ground = r1n < r_ground_;
+      if (ground) {
+        const double f = (r0n - r_ground_) / std::max(r0n - r1n, 1e-30);
+        for (int j = 0; j < 3; ++j) {
+          x1[j] = x[j] + f * (x1[j] - x[j]);
+          p1[j] = p[j] + f * (p1[j] - p[j]);
+        }
+        dt *= f;
+      }
+
       const double pm1 = std::max(norm3(p1), 1e-12);
       const double e1 = std::sqrt(pm1 * pm1 + M_MU * M_MU);
       const double e_mid = 0.5 * (e0 + e1);
@@ -479,16 +491,8 @@ void MuonTracer::trace_range(std::size_t i0, std::size_t i1, const std::vector<d
 
       double w1 = w * surv;
 
-      // ground crossing: pull the final state back onto the sphere
-      const double r0n = norm3(x);
       const double r1 = norm3(x1);
-      if (r1 < r_ground_) {
-        const double f = (r0n - r_ground_) / std::max(r0n - r1, 1e-30);
-        for (int j = 0; j < 3; ++j) {
-          x1[j] = x[j] + f * (x1[j] - x[j]);
-          p1[j] = p[j] + f * (p1[j] - p[j]);
-        }
-        w1 = w * std::pow(surv, f);
+      if (ground) {
         fate = FATE_GROUND;
       } else if (e1 < e_min) {
         fate = FATE_STOPPED;

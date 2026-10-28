@@ -2,23 +2,7 @@
 MuonTracer ("mutracr") — batch transport of atmospheric muons between
 production and decay.
 
-Physics: muons below ~100 GeV do not reinteract between production and
-decay — transport is a single-particle ODE (Lorentz bending + continuous
-dE/dX loss) and decay is deposited per step as *expected* decay weight
-(survival x decay rate x dt), never sampled.  A weighted ensemble of
-source rays is therefore an exact quadrature: no Monte Carlo, no
-variance.  This is the C++ port of the nu3d stage-C numpy tracer
-(mceq-em-integration nu3d/mutracer/tracer.py), which remains the
-correctness reference; the per-step algebra here replicates it exactly,
-including two documented quirks:
-
-  * the decay deposit of a ground-crossing step uses the full-step
-    survival (the fate weight uses the path-fraction survival), so the
-    weight audit closes only to O(per-step decay probability) on the
-    crossing step;
-  * MCS variance is accumulated per step but folded only at decay
-    (deposits carry sigma = sqrt(th2) *before* the step's increment);
-    the MCS-bend correlation along the path is not carried.
+Transport uses RK4 and deposits expected decay weight at each step.
 
 State per ray (SoA): x [cm, Earth-centred Cartesian, z = geographic
 north] | p [GeV/c] | q [charge/e] | pol [spin projection on p_hat] |
@@ -38,8 +22,7 @@ TrajectoryTracer.  The Python wrapper (gtracr.mutracr) documents this.
 Termination fates: 'ground' (r < r_ground, state pulled back onto the
 sphere), 'stopped' (E < e_min), 'faded' (w < w_min), 'escaped' (above
 r_ground + h_escape moving outward), 'maxsteps' (still alive at the
-step cap).  deposited + sum(fate weights) == sum(source weights) up to
-the crossing-step quirk above (audited in the result).
+step cap).  deposited + sum(fate weights) == sum(source weights) (audited in the result).
 
 Deposit consumers (selected per trace() call):
   none     — weights still evolve, nothing recorded

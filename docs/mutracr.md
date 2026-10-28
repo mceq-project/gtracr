@@ -5,16 +5,7 @@ muons between production and decay: RK4 integration of the Lorentz force
 with continuous dE/dX energy loss, per-step *expected*-decay weight
 deposition, and accumulated multiple-scattering (Fermi–Eyges) variance.
 
-Because muons below ~100 GeV do not reinteract between production and
-decay, transport is a single-particle ODE and a **weighted ensemble of
-source rays is an exact quadrature** — no Monte Carlo sampling, no
-variance. Decays are never sampled: each step deposits the expected
-decay weight `w·(1 − e^{−λ dt})` at the step midpoint, and the ray's
-weight decays by the survival factor.
-
-The engine is the C++ port of the nu3d stage-C numpy tracer
-(the pure-numpy reference is vendored as `gtracr._mu_reference` and the
-test suite pins the two against each other at float-rounding level).
+Each step deposits the expected decay weight at its midpoint.
 
 ## Units
 

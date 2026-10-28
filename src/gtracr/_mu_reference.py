@@ -1,11 +1,7 @@
 """
 Pure-numpy reference implementation of the muon batch tracer.
 
-Vendored, near-verbatim, from the nu3d stage-C tracer
-(mceq-em-integration nu3d/mutracer/{tracer,fields,atmosphere}.py) — the
-correctness reference that ``gtracr._libgtracr.MuonTracer`` was ported
-from.  Used by ``tests/test_mutracr.py`` to pin the C++ engine
-step-for-step; it is NOT the production API (use ``gtracr.mutracr``).
+Used to validate the C++ muon transport engine.
 
 State per ray (SoA): x (N,3) cm | p (N,3) GeV | q (N) | pol (N) |
 w (N) decay-survival weight | th2 (N) rad^2 MCS variance | alive (N).
@@ -165,12 +161,7 @@ def trace(
     ctl_path=2e5,
     decay_beta_one=False,
 ):
-    """March the ensemble until every ray is dead; returns diagnostics.
-
-    Verbatim nu3d reference semantics; see the module docstring.  The
-    only difference from nu3d is that the ground radius is an argument
-    (nu3d imports its geometry constant).
-    """
+    """March the ensemble until every ray is dead; returns diagnostics."""
     e_min = max(float(e_min), M_MU * (1.0 + 1e-3))
     dedx_fn = _as_dedx(dedx)
     b = batch
@@ -211,6 +202,16 @@ def trace(
         x1 = x0 + dt[:, None] / 6.0 * (k1x + 2 * k2x + 2 * k3x + k4x)
         p1 = p0 + dt[:, None] / 6.0 * (k1p + 2 * k2p + 2 * k3p + k4p)
 
+        r0n = np.linalg.norm(x0, axis=1)
+        r1 = np.linalg.norm(x1, axis=1)
+        dead_g = r1 < r_ground
+        if dead_g.any():
+            g = dead_g
+            f = (r0n[g] - r_ground) / np.maximum(r0n[g] - r1[g], 1e-30)
+            x1[g] = x0[g] + f[:, None] * (x1[g] - x0[g])
+            p1[g] = p0[g] + f[:, None] * (p1[g] - p0[g])
+            dt[g] *= f
+
         pm1 = np.maximum(np.linalg.norm(p1, axis=1), 1e-12)
         e1 = np.sqrt(pm1**2 + M_MU**2)
         e_mid = 0.5 * (e0 + e1)
@@ -237,17 +238,7 @@ def trace(
 
         w1 = w0 * surv
 
-        # ground crossing: pull the final state back onto the sphere
-        r0n = np.linalg.norm(x0, axis=1)
         r1 = np.linalg.norm(x1, axis=1)
-        dead_g = r1 < r_ground
-        if dead_g.any():
-            g = dead_g
-            f = ((r0n[g] - r_ground) / np.maximum(r0n[g] - r1[g], 1e-30))[:, None]
-            x1[g] = x0[g] + f * (x1[g] - x0[g])
-            p1[g] = p0[g] + f * (p1[g] - p0[g])
-            w1[g] = w0[g] * surv[g] ** f[:, 0]
-            r1[g] = np.linalg.norm(x1[g], axis=1)
 
         b.x[a], b.p[a], b.w[a], b.th2[a] = x1, p1, w1, th2
 

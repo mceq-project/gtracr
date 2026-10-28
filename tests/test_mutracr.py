@@ -425,3 +425,13 @@ def test_michel_polarization_norm_invariance():
         s0 = lab_spectrum(e, e_mu, 0.0, kind)
         s1 = lab_spectrum(e, e_mu, 1.0, kind)
         assert abs(np.trapezoid(s1 - s0, e)) < 1e-3
+
+
+def test_ground_crossing_conserves_weight():
+    tracer = MuonTracer(bfield="none", atmosphere="none")
+    x = np.array([[0.0, 0.0, tracer.r_ground + 100.0]])
+    p = np.array([[0.0, 0.0, -1.0]])
+    result = tracer.trace(x, p, q=[-1], deposit={"kind": "bank"})
+    assert result["fate"][0] == 1
+    assert result["weight_audit"] == pytest.approx(1.0, abs=1e-12)
+    assert np.linalg.norm(result["bank"]["x"][0]) >= tracer.r_ground

@@ -4,12 +4,7 @@ mutracr — batch transport of atmospheric muons between production and decay.
 ``MuonTracer`` marches an ensemble of weighted muon rays through the
 atmosphere and geomagnetic field: RK4 on (x, p) with per-ray adaptive
 time steps, continuous dE/dX energy loss, per-step *expected*-decay
-weight deposition (never sampled — a weighted source ensemble is an
-exact quadrature, no Monte Carlo variance), and accumulated Fermi-Eyges
-multiple-scattering variance.  The C++ engine
-(``gtracr._libgtracr.MuonTracer``) is a port of the nu3d stage-C numpy
-tracer, which this package vendors as ``gtracr._mu_reference`` for
-regression testing.
+weight deposition, and accumulated multiple-scattering variance.
 
 Units (muon-physics convention, NOT the SI of ``Trajectory``):
 positions cm, time s, energy/momentum GeV, B Tesla, density g/cm^3,
@@ -221,8 +216,7 @@ class MuonTracer:
             path length [cm].
         decay_beta_one : bool
             Use decay probability per unit length 1/(gamma c tau)
-            instead of the exact 1/(beta gamma c tau) — reproduces
-            pre-2026-07 MCEq references only.
+            with beta set to one.
         n_threads : int
             C++ worker threads (0 = all cores).
         deposit : dict, optional
@@ -246,8 +240,7 @@ class MuonTracer:
             Final state ``x, p, w, th2, fate`` (fate codes in
             :data:`FATES`), diagnostics ``steps`` (max per ray),
             ``deposited``, ``fate_w`` (weight per fate),
-            ``weight_audit`` (deposited + fates; equals sum(w) up to
-            the ground-crossing deposit convention), ``n``, and the
+            ``weight_audit`` (deposited + fate weights), ``n``, and the
             deposit product described above.
         """
         x = np.atleast_2d(np.asarray(x, float))
