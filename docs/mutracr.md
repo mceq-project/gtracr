@@ -118,3 +118,70 @@ The `bank` consumer is allocation-bound (it stores every deposit row);
 prefer the `spectrum`/`angular` tallies for production runs.
 
 Reproduce with `python examples/eval_mutracr_benchmark.py --full`.
+
+## Backward characteristics and source integrals
+
+`MuonTracer.trace_backward(x, p, q, ...)` traces from an observation state
+toward possible production points. Momentum is always the **physical forward
+momentum**; do not reverse the input momentum or charge. Backward propagation
+reverses spatial drift and magnetic curvature, increases energy under inverse
+continuous losses, and decreases the probability of surviving to observation.
+The upper absorbing sphere is `r_ground + h_escape`; set `h_escape=1.128e7`
+for a 112.8 km atmosphere. This method is additive; forward `trace` behavior
+and its deposit conventions are unchanged.
+
+With backward arc length s [cm], physical unit direction u, total energy E,
+stopping power a(E), density rho and momentum magnitude p, the equations are
+
+```text
+dx/ds = -u
+du/ds = -(KP / C_CMS) q (u x B) / p
+dE/ds = rho a(E)
+dA/ds = m_mu / (p C_CMS tau_mu)
+d(ln J)/ds = rho da/dE
+survival = exp(-A)
+```
+
+J is the focusing of a differential intensity in (position, solid angle,
+energy). It is not the derivative of endpoint energy between neighbouring
+rays that follow different, energy-dependent curved paths. For these
+separable losses, positive a gives J=a(E_past)/a(E_observed). The implementation
+uses this identity when possible and integrates ln J directly when initial
+loss is zero, including the exact vacuum limit J=1.
+
+The returned arrays are `x, p, survival, jacobian, path, steps_per_ray, fate`.
+`e_max` is a **total** energy limit [GeV]; `path_max` is cm (None means no
+path cap). `survival_min`, `max_steps` and positive `ctl_bend, ctl_loss,
+ctl_decay, ctl_path` bound the work. Final steps are clipped at the ground,
+TOA, energy and survival limits. `BACKWARD_FATES` maps codes to
+`maxsteps, ground, e_max, faded, toa, path_max`.
+
+By default `bank=True` also returns midpoint quadrature rows with
+`x, phat, e_mu, q, ray, ds, survival, jacobian, w`, where
+`w=survival*jacobian*ds`. A source integral is the sum of `w*q_source`
+for each ray. Source values must be per cm; include density if a cascade
+source is per g/cm². Bank rows preserve ray/path order across thread counts.
+They can be evaluated in vectorized batches outside the step loop, at the
+cost of storing the path. This source quadrature has finite numerical error;
+refine the step controls to establish convergence.
+
+For a fused compiled source without path storage, pass `bank=False` and
+`source=dict(h_cm=..., cos_theta=..., e_mu=..., values=...)`. Axes must be
+strictly increasing, with at least two finite nodes each; `e_mu` is total
+energy above the muon mass. Values have shape `(2,nH,nMu,nE,nCol)`, with
+charge order (+1,-1). The local zenith cosine is physical phat dotted with
+radial up. Interpolation is linear in altitude, cosine and ln(total energy);
+the source vanishes outside the grid. Signed response columns are supported.
+The output `source_integral` has shape (N,nCol). No per-step Python callback
+is used. The C++ `BackwardSourceConsumer` interface supports more general
+source evaluators without an MCEq dependency; consumers may run concurrently
+on distinct ray indices.
+
+See `examples/mutracr_backward.py` for a nominal plus signed source example.
+
+Backward transport currently follows deterministic characteristics only.
+It does **not** implement the adjoint angular-diffusion operator for multiple
+scattering, nor spin precession. Forward MCS variance deposits cannot be
+interpreted as an exact backward scattering solution. Ground geometry is
+spherical; geographic terrain and spatially varying atmospheric density
+beyond the configured radial profile require additional modelling.

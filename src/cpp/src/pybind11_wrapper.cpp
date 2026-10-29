@@ -383,6 +383,117 @@ PYBIND11_MODULE(_libgtracr, M) {
           },
           py::arg("e_tot"), "dE/dX [GeV/(g/cm^2)] at total energies e_tot [GeV].")
       .def(
+          "trace_backward",
+          [](const muon::MuonTracer& self,
+             py::array_t<double, py::array::c_style | py::array::forcecast> x,
+             py::array_t<double, py::array::c_style | py::array::forcecast> p,
+             py::array_t<long long, py::array::c_style | py::array::forcecast> q, double e_max,
+             double path_max, double survival_min, long max_steps, double ctl_bend, double ctl_loss,
+             double ctl_decay, double ctl_path, int n_threads, bool bank, py::object source) {
+            if (x.ndim() != 2 || x.shape(1) != 3 || p.ndim() != 2 || p.shape(1) != 3 ||
+                p.shape(0) != x.shape(0) || q.ndim() != 1 || q.shape(0) != x.shape(0))
+              throw std::invalid_argument("x,p must be (N,3), q must be (N,)");
+            const py::ssize_t n = x.shape(0);
+            auto xv = as_vector(x), pv = as_vector(p);
+            std::vector<int8_t> qv(n);
+            for (py::ssize_t i = 0; i < n; ++i) {
+              if (q.data()[i] != 1 && q.data()[i] != -1)
+                throw std::invalid_argument("q must be +1 or -1");
+              qv[i] = static_cast<int8_t>(q.data()[i]);
+            }
+            muon::BackwardOptions opt;
+            opt.e_max = e_max;
+            opt.path_max = path_max;
+            opt.survival_min = survival_min;
+            opt.max_steps = max_steps;
+            opt.ctl_bend = ctl_bend;
+            opt.ctl_loss = ctl_loss;
+            opt.ctl_decay = ctl_decay;
+            opt.ctl_path = ctl_path;
+            opt.n_threads = n_threads;
+            opt.bank = bank;
+            std::unique_ptr<muon::TabulatedBackwardSource> src;
+            py::ssize_t ncol = 0;
+            if (!source.is_none()) {
+              const py::dict d = source.cast<py::dict>();
+              auto grid = [&](const char* key) {
+                auto a =
+                    d[key].cast<py::array_t<double, py::array::c_style | py::array::forcecast>>();
+                if (a.ndim() != 1) throw std::invalid_argument("Source axes must be 1D");
+                return as_vector(a);
+              };
+              auto h = grid("h_cm"), mu = grid("cos_theta"), e = grid("e_mu");
+              auto val =
+                  d["values"]
+                      .cast<py::array_t<double, py::array::c_style | py::array::forcecast>>();
+              if (val.ndim() != 5 || val.shape(0) != 2 ||
+                  val.shape(1) != static_cast<py::ssize_t>(h.size()) ||
+                  val.shape(2) != static_cast<py::ssize_t>(mu.size()) ||
+                  val.shape(3) != static_cast<py::ssize_t>(e.size()))
+                throw std::invalid_argument("Source values must have shape (2,nH,nMu,nE,nCol)");
+              ncol = val.shape(4);
+              src.reset(new muon::TabulatedBackwardSource(std::move(h), std::move(mu), std::move(e),
+                                                          as_vector(val), ncol, n,
+                                                          self.r_ground()));
+            }
+            muon::BackwardResult res;
+            {
+              py::gil_scoped_release release;
+              res = self.trace_backward(xv, pv, qv, opt, src.get());
+            }
+            py::dict out;
+            out["x"] = to_array(std::move(res.x), {n, 3});
+            out["p"] = to_array(std::move(res.p), {n, 3});
+            out["survival"] = to_array(std::move(res.survival), {n});
+            out["jacobian"] = to_array(std::move(res.jacobian), {n});
+            out["path"] = to_array(std::move(res.path), {n});
+            out["fate"] = to_array_i8(std::move(res.fate));
+            py::array_t<long> steps(n);
+            std::copy(res.steps_per_ray.begin(), res.steps_per_ray.end(), steps.mutable_data());
+            out["steps_per_ray"] = steps;
+            if (src) {
+              std::vector<double> result = src->integral();
+              out["source_integral"] = to_array(std::move(result), {n, ncol});
+            }
+            if (bank) {
+              const py::ssize_t m = res.bank.size();
+              std::vector<double> bx(3 * m), bu(3 * m), be(m), ds(m), surv(m), jac(m), weight(m);
+              std::vector<int8_t> charge(m);
+              py::array_t<long long> ray(m);
+              for (py::ssize_t j = 0; j < m; ++j) {
+                const auto& s = res.bank[j];
+                for (int k = 0; k < 3; ++k) {
+                  bx[3 * j + k] = s.x[k];
+                  bu[3 * j + k] = s.phat[k];
+                }
+                be[j] = s.e_mu;
+                ds[j] = s.ds;
+                surv[j] = s.survival;
+                jac[j] = s.jacobian;
+                weight[j] = s.weight();
+                charge[j] = s.q;
+                ray.mutable_data()[j] = s.ray;
+              }
+              py::dict b;
+              b["x"] = to_array(std::move(bx), {m, 3});
+              b["phat"] = to_array(std::move(bu), {m, 3});
+              b["e_mu"] = to_array(std::move(be), {m});
+              b["ds"] = to_array(std::move(ds), {m});
+              b["survival"] = to_array(std::move(surv), {m});
+              b["jacobian"] = to_array(std::move(jac), {m});
+              b["w"] = to_array(std::move(weight), {m});
+              b["q"] = to_array_i8(std::move(charge));
+              b["ray"] = ray;
+              out["bank"] = b;
+            }
+            return out;
+          },
+          py::arg("x"), py::arg("p"), py::arg("q"), py::arg("e_max") = 1e6,
+          py::arg("path_max") = std::numeric_limits<double>::infinity(),
+          py::arg("survival_min") = 1e-8, py::arg("max_steps") = 100000, py::arg("ctl_bend") = 0.05,
+          py::arg("ctl_loss") = 0.05, py::arg("ctl_decay") = 0.05, py::arg("ctl_path") = 2e5,
+          py::arg("n_threads") = 0, py::arg("bank") = true, py::arg("source") = py::none())
+      .def(
           "trace",
           [](const muon::MuonTracer& self,
              py::array_t<double, py::array::c_style | py::array::forcecast> x,
