@@ -6,6 +6,7 @@ MuonTracer — batch atmospheric-muon transport (see MuonTracer.hpp).
 #include "MuonTracer.hpp"
 
 #include <algorithm>
+#include <exception>
 #include <limits>
 #include <mutex>
 #include <stdexcept>
@@ -239,6 +240,15 @@ double MuonDedx::at(double e_tot) const {
       static_cast<int>(std::upper_bound(ln_e_.begin(), ln_e_.end(), le) - ln_e_.begin()) - 1;
   const double f = (le - ln_e_[i]) / (ln_e_[i + 1] - ln_e_[i]);
   return a_[i] + f * (a_[i + 1] - a_[i]);
+}
+
+double MuonDedx::derivative(double e_tot) const {
+  if (constant_ || e_tot <= M_MU) return 0.0;
+  const double kinetic = e_tot - M_MU, le = std::log(kinetic);
+  if (le <= ln_e_.front() || le >= ln_e_.back()) return 0.0;
+  const int i =
+      static_cast<int>(std::upper_bound(ln_e_.begin(), ln_e_.end(), le) - ln_e_.begin()) - 1;
+  return (a_[i + 1] - a_[i]) / ((ln_e_[i + 1] - ln_e_[i]) * kinetic);
 }
 
 // ---------------------------------------------------------------------------
@@ -624,6 +634,311 @@ MuTraceResult MuonTracer::trace(const std::vector<double>& x, const std::vector<
   res.weight_audit =
       res.deposited + res.fate_w[0] + res.fate_w[1] + res.fate_w[2] + res.fate_w[3] + res.fate_w[4];
   return res;
+}
+
+TabulatedBackwardSource::TabulatedBackwardSource(std::vector<double> h, std::vector<double> mu,
+                                                 std::vector<double> energy,
+                                                 std::vector<double> values, std::size_t ncol,
+                                                 std::size_t nray, double r_ground)
+    : h_(std::move(h)),
+      mu_(std::move(mu)),
+      le_(std::move(energy)),
+      values_(std::move(values)),
+      integral_(nray * ncol, 0.0),
+      ncol_(ncol),
+      r_ground_(r_ground) {
+  auto grid_ok = [](const std::vector<double>& grid) {
+    if (grid.size() < 2) return false;
+    for (std::size_t i = 0; i < grid.size(); ++i)
+      if (!std::isfinite(grid[i]) || (i && grid[i] <= grid[i - 1])) return false;
+    return true;
+  };
+  if (!grid_ok(h_) || !grid_ok(mu_) || !grid_ok(le_) || h_.front() < 0.0 || mu_.front() < -1.0 ||
+      mu_.back() > 1.0 || le_.front() <= M_MU || ncol == 0 ||
+      values_.size() != 2 * h_.size() * mu_.size() * le_.size() * ncol)
+    throw std::invalid_argument("Invalid backward source grid or values shape");
+  for (double v : values_)
+    if (!std::isfinite(v)) throw std::invalid_argument("Source values must be finite");
+  for (double& e : le_) e = std::log(e);
+}
+
+void TabulatedBackwardSource::consume(const BackwardSample& s) {
+  const double r = norm3(s.x.data());
+  const double h = r - r_ground_, mu = dot3(s.x.data(), s.phat.data()) / r;
+  const double le = std::log(s.e_mu);
+  const std::vector<double>* grids[3] = {&h_, &mu_, &le_};
+  const double pos[3] = {h, std::min(std::max(mu, -1.0), 1.0), le};
+  std::size_t idx[3];
+  double f[3];
+  for (int k = 0; k < 3; ++k) {
+    const auto& g = *grids[k];
+    if (pos[k] < g.front() || pos[k] > g.back()) return;
+    idx[k] = std::min<std::size_t>(std::upper_bound(g.begin(), g.end(), pos[k]) - g.begin() - 1,
+                                   g.size() - 2);
+    f[k] = (pos[k] - g[idx[k]]) / (g[idx[k] + 1] - g[idx[k]]);
+  }
+  const std::size_t charge = s.q > 0 ? 0 : 1;
+  for (int node = 0; node < 8; ++node) {
+    const int dh = node & 1, dm = (node >> 1) & 1, de = (node >> 2) & 1;
+    const double w =
+        s.weight() * (dh ? f[0] : 1 - f[0]) * (dm ? f[1] : 1 - f[1]) * (de ? f[2] : 1 - f[2]);
+    const std::size_t base =
+        (((charge * h_.size() + idx[0] + dh) * mu_.size() + idx[1] + dm) * le_.size() + idx[2] +
+         de) *
+        ncol_;
+    for (std::size_t c = 0; c < ncol_; ++c) integral_[s.ray * ncol_ + c] += w * values_[base + c];
+  }
+}
+
+BackwardResult MuonTracer::trace_backward(const std::vector<double>& x,
+                                          const std::vector<double>& p,
+                                          const std::vector<int8_t>& q, const BackwardOptions& opt,
+                                          BackwardSourceConsumer* source) const {
+  const std::size_t n = q.size();
+  if (x.size() != 3 * n || p.size() != 3 * n)
+    throw std::invalid_argument("x and p must have shape (N, 3), q shape (N,)");
+  if (!std::isfinite(r_ground_) || r_ground_ <= 0 || !std::isfinite(h_escape_) || h_escape_ <= 0 ||
+      !std::isfinite(opt.e_max) || opt.e_max <= M_MU || !(opt.path_max > 0) ||
+      std::isnan(opt.path_max) || !std::isfinite(opt.survival_min) || opt.survival_min < 0 ||
+      opt.survival_min >= 1 || opt.max_steps < 1 || opt.n_threads < 0)
+    throw std::invalid_argument("Invalid backward limits or thread count");
+  for (double c : {opt.ctl_bend, opt.ctl_loss, opt.ctl_decay, opt.ctl_path})
+    if (!std::isfinite(c) || c <= 0)
+      throw std::invalid_argument("Backward step controls must be finite and positive");
+  const double rt = r_ground_ + h_escape_;
+  const double boundary_tol = 1e-10 * r_ground_;
+  for (std::size_t i = 0; i < n; ++i) {
+    for (int k = 0; k < 3; ++k)
+      if (!std::isfinite(x[3 * i + k]) || !std::isfinite(p[3 * i + k]))
+        throw std::invalid_argument("x and p must be finite");
+    const double r = norm3(&x[3 * i]), pm = norm3(&p[3 * i]);
+    const double energy = std::hypot(pm, M_MU);
+    if (energy <= M_MU)
+      throw std::invalid_argument("Momentum is too small to resolve positive kinetic energy");
+    if (r < r_ground_ - boundary_tol || r > rt + boundary_tol || pm <= 0 || energy > opt.e_max ||
+        (q[i] != 1 && q[i] != -1))
+      throw std::invalid_argument(
+          "Start outside shell, invalid momentum/charge, or energy above e_max");
+  }
+  BackwardResult out;
+  out.x.resize(3 * n);
+  out.p.resize(3 * n);
+  out.survival.resize(n);
+  out.jacobian.resize(n);
+  out.path.resize(n);
+  out.steps_per_ray.resize(n);
+  out.fate.resize(n);
+  std::vector<std::vector<BackwardSample>> banks(opt.bank ? n : 0);
+  // Validate material data before launching workers, so malformed tables do not
+  // throw across a std::thread boundary. Derivatives can have either sign.
+  for (double e : {M_MU * (1 + 1e-12), opt.e_max}) {
+    if (!std::isfinite(dedx_.at(e)) || dedx_.at(e) < 0)
+      throw std::invalid_argument("Backward stopping power must be finite and nonnegative");
+  }
+  std::exception_ptr error;
+  std::mutex error_mutex;
+  auto worker = [&](std::size_t begin, std::size_t end) {
+    try {
+      for (std::size_t i = begin; i < end; ++i) {
+        // State: x, physical unit direction, total E, decay optical depth, ln J.
+        using State = std::array<double, 9>;
+        State s{};
+        const double p0 = norm3(&p[3 * i]);
+        for (int k = 0; k < 3; ++k) {
+          s[k] = x[3 * i + k];
+          s[k + 3] = p[3 * i + k] / p0;
+        }
+        s[6] = std::hypot(p0, M_MU);
+        const double a_initial = dedx_.at(s[6]);
+        const double maxA = opt.survival_min > 0 ? -std::log(opt.survival_min)
+                                                 : std::numeric_limits<double>::infinity();
+        auto deriv = [&](const State& v) {
+          State d{};
+          const double r = norm3(v.data());
+          const double rho = atmo_.rho(std::max(r - r_ground_, 0.0));
+          const double a = dedx_.at(v[6]), ap = dedx_.derivative(v[6]);
+          if (!std::isfinite(a) || a < 0 || !std::isfinite(rho) || rho < 0)
+            throw std::invalid_argument("Invalid density or stopping power along backward path");
+          const double pm = std::sqrt(std::max(v[6] * v[6] - M_MU * M_MU, 1e-30));
+          const auto b = field_.at({v[0], v[1], v[2]});
+          const double kq = -KP / C_CMS * q[i] / pm;
+          for (int k = 0; k < 3; ++k) d[k] = -v[k + 3];
+          d[3] = kq * (v[4] * b[2] - v[5] * b[1]);
+          d[4] = kq * (v[5] * b[0] - v[3] * b[2]);
+          d[5] = kq * (v[3] * b[1] - v[4] * b[0]);
+          d[6] = a * rho;
+          d[7] = M_MU / (pm * C_CMS * TAU_MU);
+          d[8] = ap * rho;
+          return d;
+        };
+        auto advance = [&](const State& v, double ds) {
+          State st, res;
+          const State k1 = deriv(v);
+          for (int k = 0; k < 9; ++k) st[k] = v[k] + 0.5 * ds * k1[k];
+          const State k2 = deriv(st);
+          for (int k = 0; k < 9; ++k) st[k] = v[k] + 0.5 * ds * k2[k];
+          const State k3 = deriv(st);
+          for (int k = 0; k < 9; ++k) st[k] = v[k] + ds * k3[k];
+          const State k4 = deriv(st);
+          for (int k = 0; k < 9; ++k)
+            res[k] = v[k] + ds / 6 * (k1[k] + 2 * k2[k] + 2 * k3[k] + k4[k]);
+          const double un = norm3(&res[3]);
+          for (int k = 3; k < 6; ++k) res[k] /= un;
+          // For separable losses b(x,E)=rho(x)*a(E), integrating the
+          // phase-space divergence is exactly ln(a(E)/a(E_initial)).
+          // This also avoids quadrature across derivative jumps at table
+          // knots. Integrate ln J directly when the initial loss is zero.
+          if (a_initial > 0 && dedx_.at(res[6]) > 0)
+            res[8] = std::log(dedx_.at(res[6]) / a_initial);
+          return res;
+        };
+        double path = 0;
+        long steps = 0;
+        int8_t fate = 0;
+        for (; steps < opt.max_steps;) {
+          const double r = norm3(s.data()), radial = dot3(s.data(), &s[3]) / r;
+          constexpr double radial_tol = 16 * std::numeric_limits<double>::epsilon();
+          if (r <= r_ground_ + 1e-7 && radial > radial_tol) {
+            fate = 1;
+            for (int k = 0; k < 3; ++k) s[k] *= r_ground_ / r;
+            break;
+          }
+          if (r >= rt - 1e-7 && radial < -radial_tol) {
+            fate = 4;
+            for (int k = 0; k < 3; ++k) s[k] *= rt / r;
+            break;
+          }
+          if (s[6] >= opt.e_max) {
+            fate = 2;
+            break;
+          }
+          const State d = deriv(s);
+          if (std::abs(radial) <= radial_tol) {
+            // At an exactly tangent initial boundary, radial drift vanishes.
+            // Use its first nonzero curvature term rather than waiting for
+            // an Earth-scale radius subtraction to resolve a tiny crossing.
+            const double radial_acceleration =
+                (1 - radial * radial) / r - dot3(s.data(), &d[3]) / r;
+            if (r <= r_ground_ + 1e-7 && radial_acceleration < 0) {
+              fate = 1;
+              for (int k = 0; k < 3; ++k) s[k] *= r_ground_ / r;
+              break;
+            }
+            if (r >= rt - 1e-7 && radial_acceleration > 0) {
+              fate = 4;
+              for (int k = 0; k < 3; ++k) s[k] *= rt / r;
+              break;
+            }
+          }
+          double ds = std::min(opt.ctl_path, opt.path_max - path);
+          const double omega = norm3(&d[3]);
+          if (omega > 0) ds = std::min(ds, opt.ctl_bend / omega);
+          if (d[6] > 0) ds = std::min(ds, opt.ctl_loss * (s[6] - M_MU) / d[6]);
+          ds = std::min(ds, opt.ctl_decay / d[7]);
+          State next = advance(s, ds);
+          auto crossed = [&](const State& v) {
+            const double rr = norm3(v.data());
+            return rr < r_ground_ || rr > rt || v[6] > opt.e_max || v[7] > maxA;
+          };
+          State mid = advance(s, 0.5 * ds);
+          double event_hi = crossed(mid) ? 0.5 * ds : (crossed(next) ? ds : 0.0);
+          // A grazing ray can enter and leave the ground between sampled
+          // endpoints. Bracket the radial turning point, then the FIRST
+          // boundary intersection, rather than inspecting endpoints alone.
+          const double radial_next = dot3(next.data(), &next[3]) / norm3(next.data());
+          if (!event_hi && radial * radial_next < 0 && (r - r_ground_ < ds || rt - r < ds)) {
+            double lo = 0, hi = ds;
+            for (int it = 0; it < 60 && hi - lo > 1e-7; ++it) {
+              const double center = 0.5 * (lo + hi);
+              const State v = advance(s, center);
+              const double rv = dot3(v.data(), &v[3]);
+              if ((rv > 0) == (radial > 0))
+                lo = center;
+              else
+                hi = center;
+            }
+            const double turn = 0.5 * (lo + hi);
+            if (crossed(advance(s, turn))) event_hi = turn;
+          }
+          if (event_hi) {
+            double lo = 0, hi = event_hi;
+            for (int it = 0; it < 60 && hi - lo > 1e-7; ++it) {
+              const double center = 0.5 * (lo + hi);
+              if (crossed(advance(s, center)))
+                hi = center;
+              else
+                lo = center;
+            }
+            ds = 0.5 * (lo + hi);
+            next = advance(s, ds);
+            const double rr = norm3(next.data());
+            if (std::abs(rr - r_ground_) < 1e-4) {
+              fate = 1;
+              for (int k = 0; k < 3; ++k) next[k] *= r_ground_ / rr;
+            } else if (std::abs(rr - rt) < 1e-4) {
+              fate = 4;
+              for (int k = 0; k < 3; ++k) next[k] *= rt / rr;
+            } else if (next[6] >= opt.e_max * (1 - 1e-12)) {
+              fate = 2;
+              next[6] = opt.e_max;
+            } else
+              fate = 3;
+            mid = advance(s, 0.5 * ds);
+          }
+          if (opt.bank || source) {
+            BackwardSample sample;
+            for (int k = 0; k < 3; ++k) {
+              sample.x[k] = mid[k];
+              sample.phat[k] = mid[k + 3];
+            }
+            sample.e_mu = mid[6];
+            sample.ds = ds;
+            sample.survival = std::exp(-mid[7]);
+            sample.jacobian = std::exp(mid[8]);
+            sample.q = q[i];
+            sample.ray = i;
+            if (source) source->consume(sample);
+            if (opt.bank) banks[i].push_back(sample);
+          }
+          s = next;
+          path += ds;
+          ++steps;
+          if (!fate && path >= opt.path_max) fate = 5;
+          if (fate) break;
+        }
+        const double pf = std::sqrt(std::max(s[6] * s[6] - M_MU * M_MU, 0.0));
+        for (int k = 0; k < 3; ++k) {
+          out.x[3 * i + k] = s[k];
+          out.p[3 * i + k] = pf * s[k + 3];
+        }
+        out.survival[i] = std::exp(-s[7]);
+        out.jacobian[i] = std::exp(s[8]);
+        out.path[i] = path;
+        out.steps_per_ray[i] = steps;
+        out.fate[i] = fate;
+      }
+    } catch (...) {
+      std::lock_guard<std::mutex> lock(error_mutex);
+      if (!error) error = std::current_exception();
+    }
+  };
+  const std::size_t threads = std::min<std::size_t>(
+      std::max<std::size_t>(n, 1),
+      opt.n_threads > 0 ? opt.n_threads : std::max(1u, std::thread::hardware_concurrency()));
+  if (threads == 1)
+    worker(0, n);
+  else {
+    std::vector<std::thread> workers;
+    const std::size_t chunk = (n + threads - 1) / threads;
+    for (std::size_t t = 0; t < threads; ++t) {
+      const std::size_t begin = t * chunk, end = std::min(n, begin + chunk);
+      if (begin < end) workers.emplace_back(worker, begin, end);
+    }
+    for (auto& thread : workers) thread.join();
+  }
+  if (error) std::rethrow_exception(error);
+  for (auto& bank : banks) out.bank.insert(out.bank.end(), bank.begin(), bank.end());
+  return out;
 }
 
 }  // namespace muon

@@ -42,6 +42,7 @@ sums may differ at floating-point rounding level.
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <mutex>
 #include <string>
 #include <utility>
@@ -140,6 +141,7 @@ class MuonDedx {
   explicit MuonDedx(double a_const);
   MuonDedx(const std::vector<double>& e_kin_grid, const std::vector<double>& a);
   double at(double e_tot) const;
+  double derivative(double e_tot) const;
 
  private:
   bool constant_;
@@ -195,6 +197,61 @@ struct TraceOptions {
   int n_threads = 0;            // 0 = hardware concurrency
 };
 
+// Backward characteristics retain the PHYSICAL forward momentum direction.
+// Survival decreases into the past; jacobian is the phase-space focusing
+// exp(integral rho * da/dE ds), not a derivative between neighbouring rays.
+struct BackwardSample {
+  std::array<double, 3> x, phat;
+  double e_mu, ds, survival, jacobian;
+  int8_t q;
+  std::size_t ray;
+  double weight() const { return survival * jacobian * ds; }
+};
+
+// Called from C++ worker threads. Implementations must permit concurrent calls
+// for DISTINCT ray indices; each ray is visited in order by just one worker.
+// Sources are differential intensities per cm along physical path length.
+class BackwardSourceConsumer {
+ public:
+  virtual ~BackwardSourceConsumer() = default;
+  virtual void consume(const BackwardSample& sample) = 0;
+};
+
+struct BackwardOptions {
+  double e_max = 1e6;                                         // total GeV
+  double path_max = std::numeric_limits<double>::infinity();  // cm
+  double survival_min = 1e-8;
+  long max_steps = 100000;
+  double ctl_bend = 0.05, ctl_loss = 0.05, ctl_decay = 0.05, ctl_path = 2e5;
+  int n_threads = 0;
+  bool bank = true;
+};
+
+// Fate: 0 maxsteps, 1 ground, 2 e_max, 3 faded, 4 TOA, 5 path_max.
+struct BackwardResult {
+  std::vector<double> x, p, survival, jacobian, path;
+  std::vector<long> steps_per_ray;
+  std::vector<int8_t> fate;
+  std::vector<BackwardSample> bank;  // ray order, then increasing backward path
+};
+
+// Optional signed, multi-column source on [charge][h][cos(theta)][ln(E)][col].
+// h is above ground; theta uses the physical direction and local radial up.
+// Values outside the grid vanish; density factors belong in source values.
+class TabulatedBackwardSource : public BackwardSourceConsumer {
+ public:
+  TabulatedBackwardSource(std::vector<double> h, std::vector<double> mu, std::vector<double> energy,
+                          std::vector<double> values, std::size_t ncol, std::size_t nray,
+                          double r_ground);
+  void consume(const BackwardSample& sample) override;
+  const std::vector<double>& integral() const { return integral_; }
+
+ private:
+  std::vector<double> h_, mu_, le_, values_, integral_;
+  std::size_t ncol_;
+  double r_ground_;
+};
+
 // ---------------------------------------------------------------------------
 // MuonTracer — owns field, atmosphere, dE/dX; trace() is stateless
 // per batch and thread-safe (all evaluation methods are const).
@@ -210,6 +267,10 @@ class MuonTracer {
                       const std::vector<int8_t>& q, const std::vector<double>& pol,
                       const std::vector<double>& w, const TraceOptions& opt,
                       const DepositConfig& dep) const;
+
+  BackwardResult trace_backward(const std::vector<double>& x, const std::vector<double>& p,
+                                const std::vector<int8_t>& q, const BackwardOptions& opt,
+                                BackwardSourceConsumer* source = nullptr) const;
 
   double r_ground() const { return r_ground_; }
   double h_escape() const { return h_escape_; }

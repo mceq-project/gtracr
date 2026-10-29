@@ -38,6 +38,14 @@ EARTH_RADIUS_CM = 6.3712e8  # gtracr EARTH_RADIUS in cm
 
 #: fate codes in the ``trace()`` result
 FATES = {0: "maxsteps", 1: "ground", 2: "stopped", 3: "faded", 4: "escaped"}
+BACKWARD_FATES = {
+    0: "maxsteps",
+    1: "ground",
+    2: "e_max",
+    3: "faded",
+    4: "toa",
+    5: "path_max",
+}
 
 
 class MuonTracer:
@@ -168,6 +176,102 @@ class MuonTracer:
         return self._cpp.dedx(np.atleast_1d(np.asarray(e_tot, float)))
 
     # -- transport -------------------------------------------------------
+
+    def trace_backward(
+        self,
+        x,
+        p,
+        q,
+        *,
+        e_max=1e6,
+        path_max=None,
+        survival_min=1e-8,
+        max_steps=100000,
+        ctl_bend=0.05,
+        ctl_loss=0.05,
+        ctl_decay=0.05,
+        ctl_path=2e5,
+        n_threads=0,
+        bank=True,
+        source=None,
+    ):
+        """Integrate backward characteristics with physical forward momenta.
+
+        Positions/path lengths are cm; energies are TOTAL GeV. The absorbing
+        upper sphere is r_ground + h_escape (set h_escape to the desired TOA).
+        Energy increases into the past; survival decreases. jacobian is
+        phase-space focusing, exp(integral rho * da/dE ds), NOT a finite
+        difference of energies along neighbouring, deflected rays.
+
+        Returns final x,p,survival,jacobian,path,steps_per_ray,fate. Optional
+        bank rows have x,physical phat,e_mu,q,ray,ds,survival,jacobian and
+        w = survival*jacobian*ds. Sum w*source(x,phat,E,q) by ray to obtain
+        the differential intensity. Sources must be per cm (include rho if
+        their original measure is per column depth). Rows are ordered by ray
+        then backward path, independent of thread count.
+
+        source optionally integrates a signed, multi-column source in C++:
+        a dict with 1D increasing h_cm, cos_theta, e_mu axes, and values of
+        shape (2,nH,nMu,nE,nCol), charge order (+1,-1). cos_theta is physical
+        phat dotted with local radial up. Trilinear interpolation uses
+        h,cos_theta,ln(total E); outside-grid source is zero. The output
+        source_integral has shape (N,nCol). Use bank=False to avoid path
+        storage; no Python callback occurs during stepping.
+
+        Midpoint source quadrature has finite discretization error; refine
+        controls for convergence. No multiple scattering or adjoint angular
+        diffusion is implemented. Helicity/source components can be carried
+        as separate columns; spin precession is not modelled.
+        """
+        x = np.atleast_2d(np.asarray(x, float))
+        p = np.atleast_2d(np.asarray(p, float))
+        if x.ndim != 2 or x.shape[1] != 3 or p.shape != x.shape:
+            raise ValueError("x and p must have matching shape (N, 3)")
+        if not np.all(np.isfinite(x)) or not np.all(np.isfinite(p)):
+            raise ValueError("x and p must be finite")
+        charge = np.asarray(q)
+        if charge.shape != (len(x),) or not np.all((charge == -1) | (charge == 1)):
+            raise ValueError("q must have shape (N,) and contain only -1 or +1")
+        if int(max_steps) != max_steps or max_steps < 1:
+            raise ValueError("max_steps must be a positive integer")
+        if int(n_threads) != n_threads or n_threads < 0:
+            raise ValueError("n_threads must be a nonnegative integer")
+        for name, val in (
+            ("e_max", e_max),
+            ("ctl_bend", ctl_bend),
+            ("ctl_loss", ctl_loss),
+            ("ctl_decay", ctl_decay),
+            ("ctl_path", ctl_path),
+        ):
+            if not np.isfinite(val) or val <= 0:
+                raise ValueError(f"{name} must be finite and positive")
+        if not np.isfinite(survival_min) or not 0 <= survival_min < 1:
+            raise ValueError("survival_min must lie in [0, 1)")
+        if path_max is not None and (not np.isfinite(path_max) or path_max <= 0):
+            raise ValueError("path_max must be finite and positive, or None")
+        if source is not None:
+            source = {
+                key: np.ascontiguousarray(source[key], dtype=float)
+                for key in ("h_cm", "cos_theta", "e_mu", "values")
+            }
+            if any(not np.all(np.isfinite(v)) for v in source.values()):
+                raise ValueError("Source axes and values must be finite")
+        return self._cpp.trace_backward(
+            x,
+            p,
+            np.asarray(charge, np.int64),
+            e_max=float(e_max),
+            path_max=np.inf if path_max is None else float(path_max),
+            survival_min=float(survival_min),
+            max_steps=int(max_steps),
+            ctl_bend=float(ctl_bend),
+            ctl_loss=float(ctl_loss),
+            ctl_decay=float(ctl_decay),
+            ctl_path=float(ctl_path),
+            n_threads=int(n_threads),
+            bank=bool(bank),
+            source=source,
+        )
 
     def trace(
         self,
