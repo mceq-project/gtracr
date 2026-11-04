@@ -17,7 +17,7 @@ class Particle {
   double R;  // rigidity
 
  public:
-  // Default constructor, set to Proton (PID:2122, charge:+1e, mass:0.938272,
+  // Default constructor, set to Proton (PID:2122, charge:+1e, mass:0.938272088,
   // label:p+)
   Particle();
   // Constructs a particle with some given name, pdgid, mass, charge, and label

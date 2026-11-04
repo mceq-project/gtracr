@@ -1,5 +1,5 @@
 """
-Tests for Python B-field wrappers: MagneticField (dipole), IGRF13, and IGRFTable.
+Tests for Python B-field wrappers: MagneticField (dipole), IGRF14, and IGRFTable.
 """
 
 from pathlib import Path
@@ -60,43 +60,43 @@ def test_dipole_r_scaling():
 
 
 # ---------------------------------------------------------------------------
-# IGRF13 — Python wrapper
+# IGRF14 — Python wrapper
 # ---------------------------------------------------------------------------
 
 
-def test_igrf13_default_nmax():
-    """IGRF13 default nmax is 13."""
-    from gtracr.bfield.igrf import IGRF13
+def test_igrf14_default_nmax():
+    """IGRF14 default nmax is 13."""
+    from gtracr.bfield.igrf import IGRF14
 
-    igrf = IGRF13(2020.0)
+    igrf = IGRF14(2020.0)
     assert igrf.nmax == 13
 
 
-def test_igrf13_custom_nmax():
-    """IGRF13 with nmax=5 initializes without error."""
-    from gtracr.bfield.igrf import IGRF13
+def test_igrf14_custom_nmax():
+    """IGRF14 with nmax=5 initializes without error."""
+    from gtracr.bfield.igrf import IGRF14
 
-    igrf = IGRF13(2020.0, nmax=5)
+    igrf = IGRF14(2020.0, nmax=5)
     assert igrf.nmax == 5
     result = igrf.values(EARTH_RADIUS, np.pi / 2.0, 0.0)
     assert all(np.isfinite(v) for v in result)
 
 
 @pytest.mark.parametrize("year", [1900, 1950, 2020, 2024])
-def test_igrf13_date_parametrize(year):
-    """IGRF13 returns finite values across all epochs."""
-    from gtracr.bfield.igrf import IGRF13
+def test_igrf14_date_parametrize(year):
+    """IGRF14 returns finite values across all epochs."""
+    from gtracr.bfield.igrf import IGRF14
 
-    igrf = IGRF13(float(year))
+    igrf = IGRF14(float(year))
     result = igrf.values(EARTH_RADIUS, np.pi / 2.0, np.pi)
     assert all(np.isfinite(v) for v in result)
 
 
-def test_igrf13_values_finite():
+def test_igrf14_values_finite():
     """Spot-check multiple (r, theta, phi) coordinates."""
-    from gtracr.bfield.igrf import IGRF13
+    from gtracr.bfield.igrf import IGRF14
 
-    igrf = IGRF13(2020.0)
+    igrf = IGRF14(2020.0)
     coords = [
         (EARTH_RADIUS, np.pi / 2.0, 0.0),
         (2.0 * EARTH_RADIUS, 1.0, np.pi / 4.0),
@@ -109,30 +109,30 @@ def test_igrf13_values_finite():
         )
 
 
-def test_igrf13_leap_year():
-    """IGRF13 with a leap year initializes correctly."""
-    from gtracr.bfield.igrf import IGRF13
+def test_igrf14_leap_year():
+    """IGRF14 with a leap year initializes correctly."""
+    from gtracr.bfield.igrf import IGRF14
 
-    igrf = IGRF13(2000)  # 2000 is a leap year
+    igrf = IGRF14(2000)  # 2000 is a leap year
     result = igrf.values(EARTH_RADIUS, np.pi / 2.0, np.pi)
     assert len(result) == 3
 
 
-def test_igrf13_large_theta_normalization():
-    """IGRF13 normalizes theta_deg > 180 without crashing."""
-    from gtracr.bfield.igrf import IGRF13
+def test_igrf14_large_theta_normalization():
+    """IGRF14 normalizes theta_deg > 180 without crashing."""
+    from gtracr.bfield.igrf import IGRF14
 
-    igrf = IGRF13(2015)
+    igrf = IGRF14(2015)
     # theta_rad = 4.0 → ~229 degrees > 180, triggers normalization
     result = igrf.values(EARTH_RADIUS, 4.0, np.pi)
     assert len(result) == 3
 
 
-def test_igrf13_large_phi_normalization():
-    """IGRF13 normalizes phi_deg > 360 without crashing."""
-    from gtracr.bfield.igrf import IGRF13
+def test_igrf14_large_phi_normalization():
+    """IGRF14 normalizes phi_deg > 360 without crashing."""
+    from gtracr.bfield.igrf import IGRF14
 
-    igrf = IGRF13(2015)
+    igrf = IGRF14(2015)
     # phi_rad = 7.5 → ~430 degrees > 360, triggers normalization
     result = igrf.values(EARTH_RADIUS, np.pi / 2.0, 7.5)
     assert len(result) == 3

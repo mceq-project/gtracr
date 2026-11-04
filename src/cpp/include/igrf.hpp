@@ -2,6 +2,7 @@
 #define __IGRF_HPP_
 
 #include <array>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -21,8 +22,10 @@ constexpr int MAXDEG = 13;
 // maximum number of Gaussian coefficients
 // shval3() indexes gh_arr up to (MAXDEG*(MAXDEG+2)+2); use 210 for safety.
 constexpr int MAXCOEFF = 210;
-// the longest epoch
-constexpr double MAXEPOCH = 2020.00;
+// the latest main-field epoch (IGRF-14: 2025, secular variation to 2030)
+constexpr double MAXEPOCH = 2025.00;
+// coefficient file in the data directory (written by scripts/cof_to_json.py)
+constexpr const char* JSON_FILE = "igrf14.json";
 
 };  // namespace igrf_const
 
@@ -32,9 +35,9 @@ The IGRF model of Earth's magnetic field.
 This code is derived from the MagneticField class that contains the Earth's
 magnetic field as a dipole field.
 
-This code supports dates (year, month, and day) from 1900 to 2025 by utilizing
+This code supports dates (year, month, and day) from 1900 to 2030 by utilizing
 interpolation and extrapolation methods with the spherical harmonic coefficients
-obtained from IGRF13.COF in the data/ directory.
+obtained from IGRF14.COF (via igrf14.json) in the data/ directory.
 
 This code is derived from the geomag 7.0 software from NGDC (see geomag70.c
 for the original code). The code is obtained from here :
@@ -193,9 +196,9 @@ class IGRF : public MagneticField {
   This code is derived from the MagneticField class that contains the Earth's
   magnetic field as a dipole field.
 
-  This code supports dates (year, month, and day) from 1900 to 2025 by utilizing
+  This code supports dates (year, month, and day) from 1900 to 2030 by utilizing
   interpolation and extrapolation methods with the spherical harmonic coefficients
-  obtained from IGRF13.COF in the data/ directory.
+  obtained from IGRF14.COF (via igrf14.json) in the data/ directory.
 
   This code is derived from the geomag 7.0 software from NGDC (see geomag70.c
   for the original code). The code is obtained from here :

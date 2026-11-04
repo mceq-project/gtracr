@@ -3,6 +3,7 @@ py.install_sources(
     '__init__.py',
     '_fallback.py',
     'constants.py',
+    'escape.py',
     'geomagnetic_cutoffs.py',
     'location.py',
     'particle.py',

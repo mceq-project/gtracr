@@ -10,7 +10,7 @@ This should be run every time there is an update with the .COF files obtained fr
 import json
 import os
 
-IGRF_VERSION = 13  # should be updated with each IGRF version
+IGRF_VERSION = 14  # should be updated with each IGRF version
 
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 PARENT_DIR = os.path.dirname(CURRENT_DIR)

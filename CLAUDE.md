@@ -126,7 +126,7 @@ User (Python)
   │
   ├── bfield subpackage (src/gtracr/bfield/)
   │     ├── MagneticField  — ideal dipole (1/r³ falloff)
-  │     ├── IGRF13         — Python IGRF-13 spherical harmonics
+  │     ├── IGRF14         — Python IGRF-14 spherical harmonics
   │     └── IGRFTable      — Python wrapper around C++ tabulated IGRF
   │
   └── pybind11 extension: gtracr._libgtracr  (src/cpp/)
@@ -140,8 +140,8 @@ User (Python)
         │     scanning, std::thread parallelism. Eliminates all Python overhead.
         │
         ├── IGRF (C++)                   ← B-field model (direct)
-        │     Degree-13 spherical harmonic expansion (IGRF-13).
-        │     Coefficients loaded from src/gtracr/data/igrf13.json at construction.
+        │     Degree-13 spherical harmonic expansion (IGRF-14).
+        │     Coefficients loaded from src/gtracr/data/igrf14.json at construction.
         │
         └── IGRF Table (C++)             ← B-field model (tabulated)
               3D lookup table (64×128×256 grid, 24 MB) with trilinear
@@ -170,7 +170,7 @@ The 6-vector state is `(r, θ, φ, pᵣ, pθ, pφ)` where `p` is relativistic mo
 | Type | `bfield_type=` | Class | Description |
 |------|----------------|-------|-------------|
 | Dipole | `'dipole'` | `MagneticField` (C++) | Ideal dipole, 1/r³ falloff |
-| Direct IGRF | `'igrf'` | `IGRF` (C++) | IGRF-13 spherical harmonics, degree 13, 1900–2025 |
+| Direct IGRF | `'igrf'` | `IGRF` (C++) | IGRF-14 spherical harmonics, degree 13, 1900–2030 |
 | Tabulated IGRF | `'table'` | `igrf_table` (C++) | 3D lookup table (64×128×256), trilinear interpolation; ~7× faster than direct IGRF |
 
 The tabulated field is generated once from the direct IGRF model and cached to disk
@@ -246,7 +246,7 @@ in this regime; use mid-latitude locations (e.g. `location_name="Kamioka"`) or
   `ThreadPoolExecutor` (tabulated IGRF, GIL released); default `n_workers=None` uses all CPU cores
 - **Frozen-field RK4**: B-field evaluated once per step (not 4×); reduces IGRF calls 4× per step
 - **TrajectoryTracer caching in GMRC**: one `TrajectoryTracer` built per thread; `reset()+evaluate()`
-  loops over rigidities without reloading `igrf13.json`
+  loops over rigidities without reloading `igrf14.json`
 - **std::vector pre-allocation**: `reserve(max_iter_)` already present in `evaluate_and_get_trajectory()`
 - **3D IGRF lookup table**: 64×128×256 grid (24 MB) with trilinear interpolation replaces
   Legendre polynomial recursion; generated once, cached to disk as `.npy`
@@ -290,9 +290,9 @@ Key findings:
 
 | File | Description |
 |------|-------------|
-| `src/gtracr/data/IGRF13.COF` | Original IGRF-13 coefficient file |
-| `src/gtracr/data/IGRF13.shc` | Spherical harmonic coefficient format |
-| `src/gtracr/data/igrf13.json` | JSON format used by C++ `IGRF` class at runtime |
+| `src/gtracr/data/IGRF14.COF` | Original IGRF-14 coefficient file |
+| `src/gtracr/data/IGRF14.shc` | Spherical harmonic coefficient format |
+| `src/gtracr/data/igrf14.json` | JSON format used by C++ `IGRF` class at runtime |
 | `src/gtracr/data/igrf_table_<year>.npy` | Cached 3D IGRF lookup table (auto-generated) |
 | `src/gtracr/data/igrf_table_<year>_params.npz` | Grid metadata for cached table |
 | `src/gtracr/data/benchmark_data.pkl` | Saved benchmark/regression baselines |

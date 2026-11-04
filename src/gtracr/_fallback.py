@@ -1,8 +1,10 @@
 """
 Pure-Python fallback trajectory integrator.
 
-Implements the same relativistic Lorentz ODE as the C++ ``TrajectoryTracer``
-using a fixed-step RK4 scheme in Python/NumPy.  This is used for testing,
+Implements the relativistic Lorentz ODE of the C++ ``TrajectoryTracer`` in its
+spherical form (the C++ RK integrators advance the Cartesian form) using a
+fixed-step RK4 scheme in Python/NumPy, with the field evaluated at every stage.
+Paths passing close to a geographic pole are less accurate here.  This is used for testing,
 debugging, and as a reference implementation.  The production integrator is
 ``gtracr._libgtracr.TrajectoryTracer`` (C++ via pybind11), which is ~100×
 faster.
@@ -10,7 +12,7 @@ faster.
 
 import numpy as np
 
-from gtracr.constants import EARTH_RADIUS, SPEED_OF_LIGHT
+from gtracr.constants import EARTH_RADIUS, MIN_SIN_THETA, SPEED_OF_LIGHT
 
 
 class pTrajectoryTracer:
@@ -18,7 +20,7 @@ class pTrajectoryTracer:
     Pure-Python trajectory tracer (RK4).
 
     Mirrors the C++ ``TrajectoryTracer`` interface so it can be used as a
-    drop-in for testing.  B-field support: dipole (``"d"``) and IGRF-13
+    drop-in for testing.  B-field support: dipole (``"d"``) and IGRF-14
     (``"i"``).
 
     Parameters
@@ -36,7 +38,7 @@ class pTrajectoryTracer:
     max_step : int
         Maximum number of integration steps (default 10 000).
     bfield_type : str
-        ``"d"`` for dipole or ``"i"`` for IGRF-13 (default ``"d"``).
+        ``"d"`` for dipole or ``"i"`` for IGRF-14 (default ``"d"``).
     igrf_params : tuple or None
         ``(data_dir, decimal_year)`` required when *bfield_type* is ``"i"``.
     """
@@ -52,7 +54,7 @@ class pTrajectoryTracer:
         bfield_type="d",
         igrf_params=None,
     ):
-        from gtracr.bfield import IGRF13, MagneticField
+        from gtracr.bfield import IGRF14, MagneticField
 
         self.charge = charge
         self.mass = mass
@@ -70,7 +72,7 @@ class pTrajectoryTracer:
                     "igrf_params=(data_dir, decimal_year) required for bfield_type='i'"
                 )
             year = igrf_params[1]
-            self.bfield = IGRF13(year, nmax=13)
+            self.bfield = IGRF14(year, nmax=13)
         else:
             raise ValueError(f"Unknown bfield_type {bfield_type!r}: use 'd' or 'i'")
 
@@ -101,19 +103,25 @@ class pTrajectoryTracer:
 
         bf_r, bf_theta, bf_phi = self.bfield.values(r, theta, phi)
 
+        # Regularise the polar-axis singularity as in the C++ tracer.
+        sin_theta = np.sin(theta)
+        if abs(sin_theta) < MIN_SIN_THETA:
+            sin_theta = -MIN_SIN_THETA if np.signbit(sin_theta) else MIN_SIN_THETA
+        cos_theta = np.cos(theta)
+
         dprdt = (
             -self.charge * (ptheta * bf_phi - bf_theta * pphi)
             + (ptheta**2.0 + pphi**2.0) / r
         )
         dpthetadt = (
             self.charge * (pr * bf_phi - bf_r * pphi)
-            + (pphi**2.0 * np.cos(theta)) / (r * np.sin(theta))
+            + (pphi**2.0 * cos_theta) / (r * sin_theta)
             - (pr * ptheta) / r
         )
         dpphidt = (
             -self.charge * (pr * bf_theta - bf_r * ptheta)
             - (pr * pphi) / r
-            - (ptheta * pphi * np.cos(theta)) / (r * np.sin(theta))
+            - (ptheta * pphi * cos_theta) / (r * sin_theta)
         )
 
         return (
@@ -121,7 +129,7 @@ class pTrajectoryTracer:
                 [
                     pr,
                     ptheta / r,
-                    pphi / (r * np.sin(theta)),
+                    pphi / (r * sin_theta),
                     dprdt,
                     dpthetadt,
                     dpphidt,

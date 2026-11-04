@@ -33,16 +33,16 @@ def test_pydipole():
     from gtracr.bfield.dipole import MagneticField
 
     expected_bmag = [
-        2.94048000e-05,
-        5.35010091e-05,
-        3.67560000e-06,
-        3.67560000e-06,
-        5.88096000e-08,
-        5.88096000e-08,
-        5.88096000e-08,
-        6.62628213e-06,
-        2.99732384e-06,
-        3.11191153e-07,
+        2.93500000e-05,
+        5.34013024e-05,
+        3.66875000e-06,
+        3.66875000e-06,
+        5.87000000e-08,
+        5.87000000e-08,
+        5.87000000e-08,
+        6.61393312e-06,
+        2.99173790e-06,
+        3.10611204e-07,
     ]
 
     pydip = MagneticField()
@@ -56,7 +56,7 @@ def test_pydipole():
 
 def test_pyigrf():
     """Test the IGRF model in the Python version."""
-    from gtracr.bfield.igrf import IGRF13
+    from gtracr.bfield.igrf import IGRF14
 
     expected_bmag = [
         3.42851920e-05,
@@ -71,7 +71,7 @@ def test_pyigrf():
         2.67410913e-07,
     ]
 
-    pyigrf = IGRF13(CURRENT_YEAR)
+    pyigrf = IGRF14(CURRENT_YEAR)
 
     for iexp, coord in enumerate(coord_list):
         bf_values = pyigrf.values(*coord)
@@ -85,16 +85,16 @@ def test_dipole():
     from gtracr._libgtracr import MagneticField
 
     expected_bmag = [
-        2.94048000e-05,
-        5.35010091e-05,
-        3.67560000e-06,
-        3.67560000e-06,
-        5.88096000e-08,
-        5.88096000e-08,
-        5.88096000e-08,
-        6.62628213e-06,
-        2.99732384e-06,
-        3.11191153e-07,
+        2.93500000e-05,
+        5.34013024e-05,
+        3.66875000e-06,
+        3.66875000e-06,
+        5.87000000e-08,
+        5.87000000e-08,
+        5.87000000e-08,
+        6.61393312e-06,
+        2.99173790e-06,
+        3.10611204e-07,
     ]
 
     dip = MagneticField()
@@ -123,7 +123,7 @@ def test_igrf():
     """
     from gtracr._libgtracr import IGRF
 
-    DATA_PATH = str(DATA_DIR / "igrf13.json")
+    DATA_PATH = str(DATA_DIR / "igrf14.json")
 
     igrf = IGRF(DATA_PATH, CURRENT_YEAR)
 

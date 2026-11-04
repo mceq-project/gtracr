@@ -26,7 +26,7 @@ class Particle:
 
     Examples
     --------
-    >>> proton = Particle("proton", 2212, 0.938272, 1, "p+")
+    >>> proton = Particle("proton", 2212, 0.938272088, 1, "p+")
     """
 
     def __init__(self, name, pid, mass, charge, label):

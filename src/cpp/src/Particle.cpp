@@ -20,7 +20,7 @@ Notes:
 - The mass of the particles are also obtained from PDG
 
 Example:
-proton: proton = Particle("Proton", 2212, 0.938272, "p+")
+proton: proton = Particle("Proton", 2212, 0.938272088, "p+")
 */
 #include "Particle.hpp"
 
@@ -35,7 +35,7 @@ proton: proton = Particle("Proton", 2212, 0.938272, "p+")
 // Constructors
 // Default constructor, set to proton
 // Default energy set to 1GeV
-Particle::Particle() : nm{"Proton"}, pid{2212}, m{0.938272}, ch{1}, lbl{"p+"} {
+Particle::Particle() : nm{"Proton"}, pid{2212}, m{0.938272088}, ch{1}, lbl{"p+"} {
   p = sqrt(m * m + 1.);
   R = (p) / abs(ch);
   v = (p * constants::SPEED_OF_LIGHT) /

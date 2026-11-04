@@ -160,3 +160,51 @@ def test_gmrc_parallel():
     )
     gmrc.evaluate(dt=1e-4, max_time=0.05)
     assert len(gmrc.data_dict["azimuth"]) == 2
+
+
+# ---------------------------------------------------------------------------
+# Cutoffs above max_rigidity
+# ---------------------------------------------------------------------------
+
+
+def test_gmrc_flags_cutoffs_above_rmax():
+    """Directions with cutoff > max_rigidity are kept, clipped and flagged."""
+    gmrc = GMRC(
+        location="Kamioka",
+        iter_num=20,
+        bfield_type="dipole",
+        n_workers=1,
+        min_rigidity=1.0,
+        max_rigidity=3.0,
+        delta_rigidity=1.0,
+        # fixed 10 RE / max_time criterion: the short budget keeps this a test
+        # of the flag logic, not of slow low-rigidity escapes
+        escape_factor=0,
+        time_factor=0,
+    )
+    np.testing.assert_allclose(gmrc.rigidity_list, [1.0, 2.0, 3.0])
+    gmrc.evaluate(dt=1e-4, max_time=0.05)
+    above = gmrc.data_dict["above_rmax"]
+    assert above.shape == (20,) and above.dtype == bool
+    # Kamioka cutoffs are > 3 GV in every direction
+    assert above.all()
+    np.testing.assert_array_equal(gmrc.data_dict["rcutoff"], 3.0)
+
+
+def test_gmrc_batch_flags_cutoffs_above_rmax():
+    gmrc = GMRC(
+        location="Kamioka",
+        iter_num=20,
+        bfield_type="igrf",
+        n_workers=2,
+        min_rigidity=1.0,
+        max_rigidity=3.0,
+        delta_rigidity=1.0,
+        date="2024-01-15",
+        escape_factor=0,
+        time_factor=0,
+    )
+    gmrc.evaluate_batch(dt=1e-4, max_time=0.05, base_seed=1)
+    assert len(gmrc.data_dict["rcutoff"]) == 20
+    assert gmrc.data_dict["above_rmax"].all()
+    np.testing.assert_array_equal(gmrc.data_dict["rcutoff"], 3.0)

@@ -24,28 +24,23 @@ IGRF::IGRF(const std::string& fname, const double sdate)
       nmain2_{0},
       nsv1_{0},
       nsv2_{0} {
-  if (sdate_ > igrf_const::MAXEPOCH) {
+  // Epoch of the model at or before the date (5-year grid from 1900), as in
+  // geomag70: interpolate between it and the next model, or extrapolate the
+  // latest model with its secular variation.
+  if (sdate_ >= igrf_const::MAXEPOCH) {
     epoch1_ = igrf_const::MAXEPOCH;
-    epoch2_ = igrf_const::MAXEPOCH + 5.;
   } else {
-    // get epochs in which we want to interpolate / extrapolate
-    for (double epoch = 1900; epoch <= igrf_const::MAXEPOCH; epoch += 5) {
-      // set date to maximum epoch if given date is extrapolated
-      if ((sdate_ - epoch) < 2.5) {  // not abs value to get the epoch before the date
-        epoch1_ = epoch;
-        epoch2_ = epoch + 5.;
-        break;
-      }
-    }
+    epoch1_ = 1900. + 5. * std::floor((sdate_ - 1900.) / 5.);
+    if (epoch1_ < 1900.) epoch1_ = 1900.;
   }
+  epoch2_ = epoch1_ + 5.;
 
   // get the spherical harmonic coefficients
   getshc(fname);
 
   // get the spherical harmonic coeffiecients for the specific date
   // and either interpolate or extrapolate if we have to
-  if (epoch2_ + 5 > igrf_const::MAXEPOCH)  // if model isnt the last model in the file
-  {
+  if (epoch1_ >= igrf_const::MAXEPOCH) {  // latest model: extrapolate with SV
     extrapsh(sdate_, 3);
     extrapsh(sdate_ + 1, 4);
   } else {
@@ -113,8 +108,8 @@ void IGRF::getshc(const std::string& fname) {
     }
   }
 
-  // only set epoch2 if epoch2 is smaller than the latest epoch
-  if (epoch2_ < igrf_const::MAXEPOCH) {
+  // epoch2 exists in the file unless epoch1 is the latest model
+  if (epoch2_ <= igrf_const::MAXEPOCH) {
     nmain2_ = igrf_map[epoch2]["nmain"];
     nsv2_ = igrf_map[epoch2]["nsv"];
     int ncoeffs2 = nmain2_ * (nmain2_ + 2);

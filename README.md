@@ -7,7 +7,7 @@ and computes geomagnetic rigidity cutoffs (GMRC).
 
 ## Features
 
-- **IGRF-13 magnetic field** — full degree-13 spherical harmonic model, plus a
+- **IGRF-14 magnetic field** — full degree-13 spherical harmonic model, plus a
   fast 3D tabulated lookup (~7x speedup)
 - **Three solvers** — RK4, Boris pusher (~30% faster), and adaptive RK45
   (~100x fewer steps for escaping trajectories)
