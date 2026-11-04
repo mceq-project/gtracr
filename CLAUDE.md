@@ -124,6 +124,9 @@ User (Python)
   │       evaluate()       — Python-orchestrated (ProcessPool or ThreadPool)
   │       evaluate_batch() — entire MC loop in C++ (BatchGMRC)
   │
+  ├── MuonTracer (src/gtracr/mutracr.py, C++ MuonTracer.{hpp,cpp}) — atmospheric-muon
+  │     transport ("mutracr"; cm/GeV units, not SI). Details: docs/mutracr.md
+  │
   ├── bfield subpackage (src/gtracr/bfield/)
   │     ├── MagneticField  — ideal dipole (1/r³ falloff)
   │     ├── IGRF14         — Python IGRF-14 spherical harmonics

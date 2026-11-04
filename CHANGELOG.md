@@ -2,6 +2,17 @@
 
 Presents the version history of the package.
 
+### Unreleased
+
+New:
+
+- **MuonTracer ("mutracr")**: batch transport of atmospheric muons between
+  production and decay (RK4, continuous dE/dX loss, expected-decay weight
+  deposits, Fermi–Eyges MCS variance, std::thread parallelism); see
+  docs/mutracr.md.
+- Polarized Michel mu → nu kernels in `gtracr.mutracr`.
+- Benchmark: `examples/eval_mutracr_benchmark.py`.
+
 ### Version 3.0.0
 
 Breaking changes:
