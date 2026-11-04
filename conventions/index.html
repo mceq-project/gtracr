@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Keito Watanabe" /><link rel="canonical" href="https://kwat0308.github.io/gtracr/conventions/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Conventions - gtracr — Cosmic Ray Trajectory Simulation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Conventions";
+        var mkdocs_page_input_path = "conventions.md";
+        var mkdocs_page_url = "/gtracr/conventions/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/yaml.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/python.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/bash.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> gtracr — Cosmic Ray Trajectory Simulation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../trajectory/">Trajectories</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../geomagnetic_cutoffs/">Cutoff Maps</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../solvers/">Solvers</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../bfield/">Magnetic Field Models</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../mutracr/">Muon Transport (mutracr)</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../architecture/">Architecture</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Conventions</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#arrival-direction">Arrival direction</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#converting-from-other-conventions">Converting from other conventions</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#units-and-constants">Units and constants</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../benchmarks/">Benchmarks</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../license/">License</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">gtracr — Cosmic Ray Trajectory Simulation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Conventions</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/kwat0308/gtracr/edit/master/docs/conventions.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="conventions">Conventions</h1>
+<h2 id="arrival-direction">Arrival direction</h2>
+<p><code>zenith_angle</code> and <code>azimuth_angle</code> give the <strong>arrival direction</strong>: the point
+on the sky the particle comes from, seen from the detector.</p>
+<ul>
+<li>Zenith: 0 = from overhead, 90 = horizontal, &gt; 90 = up-going (the particle
+  crossed the Earth).</li>
+<li>Azimuth: measured from <strong>geographic north, clockwise</strong> seen from above:
+  <strong>0 = from north, 90 = from east, 180 = from south, 270 = from west</strong>.
+  This is the astropy <code>AltAz</code> convention and the one of MCEq's
+  location-centred atmospheres. In the local tangent frame x = east,
+  y = north, z = up the unit vector toward the source is
+  <code>(sin z sin a, sin z cos a, cos z)</code>.</li>
+</ul>
+<p>For positive particles the east–west effect makes cutoffs from the east
+(azimuth 90) higher than from the west (270).</p>
+<h3 id="converting-from-other-conventions">Converting from other conventions</h3>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Its azimuth <code>b</code></th>
+<th>gtracr azimuth</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gtracr &lt; 3.0</td>
+<td>0 = from south, 90 = from east (Honda)</td>
+<td><code>(180 - b) % 360</code></td>
+</tr>
+<tr>
+<td>Honda / HKKM flux tables</td>
+<td>0 = from south, 90 = from east</td>
+<td><code>(180 - b) % 360</code></td>
+</tr>
+<tr>
+<td>CORSIKA <code>PHI</code></td>
+<td>momentum azimuth, counter-clockwise from magnetic north (x = N, y = W)</td>
+<td><code>(180 - b) % 360</code>, then add the magnetic declination for geographic north</td>
+</tr>
+</tbody>
+</table>
+<p>East (90) and west (270) are the same in all of these; north and south swap.</p>
+<h2 id="units-and-constants">Units and constants</h2>
+<ul>
+<li>Rigidity R in GV, R = p c / (|Z| e); momentum p in GeV/c; <code>energy</code> is the
+  total energy in GeV.</li>
+<li>SI conversions use the exact SI values: e = 1.602176634e-19 C,
+  c = 299792458 m/s, 1 GeV/c = 1e9 e / c kg m/s, 1 GeV/c^2 = 1e9 e / c^2 kg.</li>
+<li>Earth radius 6371.2 km (the IGRF reference radius); altitudes are above
+  this sphere.</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../architecture/" class="btn btn-neutral float-left" title="Architecture"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../benchmarks/" class="btn btn-neutral float-right" title="Benchmarks">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/kwat0308/gtracr" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../architecture/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../benchmarks/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

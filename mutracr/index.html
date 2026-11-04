@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Keito Watanabe" /><link rel="canonical" href="https://kwat0308.github.io/gtracr/mutracr/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Muon Transport (mutracr) - gtracr — Cosmic Ray Trajectory Simulation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Muon Transport (mutracr)";
+        var mkdocs_page_input_path = "mutracr.md";
+        var mkdocs_page_url = "/gtracr/mutracr/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/yaml.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/python.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/bash.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> gtracr — Cosmic Ray Trajectory Simulation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../trajectory/">Trajectories</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../geomagnetic_cutoffs/">Cutoff Maps</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../solvers/">Solvers</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../bfield/">Magnetic Field Models</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Muon Transport (mutracr)</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#units">Units</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#quickstart">Quickstart</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#configuration">Configuration</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#tracing-and-deposit-consumers">Tracing and deposit consumers</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#michel-kernels">Michel kernels</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#performance">Performance</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#backward-characteristics-and-source-integrals">Backward characteristics and source integrals</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../architecture/">Architecture</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../conventions/">Conventions</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../benchmarks/">Benchmarks</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../license/">License</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">gtracr — Cosmic Ray Trajectory Simulation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Muon Transport (mutracr)</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/kwat0308/gtracr/edit/master/docs/mutracr.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="muon-transport-mutracr">Muon Transport (mutracr)</h1>
+<p><code>MuonTracer</code> — nicknamed <strong>mutracr</strong> — transports batches of atmospheric
+muons between production and decay: RK4 integration of the Lorentz force
+with continuous dE/dX energy loss, accumulated multiple-scattering
+(Fermi–Eyges) variance, and deposition of the <em>expected</em> decay weight at
+each step midpoint (decays are never sampled).</p>
+<h2 id="units">Units</h2>
+<p><code>MuonTracer</code> uses the atmospheric-muon literature convention — <strong>not</strong>
+the SI units of <code>Trajectory</code>:</p>
+<table>
+<thead>
+<tr>
+<th>quantity</th>
+<th>unit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>position</td>
+<td>cm (Earth-centred Cartesian, z = geographic north)</td>
+</tr>
+<tr>
+<td>momentum / energy</td>
+<td>GeV</td>
+</tr>
+<tr>
+<td>magnetic field</td>
+<td>Tesla</td>
+</tr>
+<tr>
+<td>density</td>
+<td>g/cm³</td>
+</tr>
+<tr>
+<td>dE/dX</td>
+<td>GeV/(g/cm²)</td>
+</tr>
+<tr>
+<td>time</td>
+<td>s</td>
+</tr>
+</tbody>
+</table>
+<h2 id="quickstart">Quickstart</h2>
+<pre><code class="language-python">import numpy as np
+from gtracr import MuonTracer
+
+mt = MuonTracer(bfield=&quot;shell&quot;, atmosphere=&quot;usstd&quot;, r_ground=6.3712e8)
+
+# one 3 GeV/c muon, 20 km above the pole, going straight down
+x = np.array([[0.0, 0.0, mt.r_ground + 2.0e6]])
+p = np.array([[0.0, 0.0, -3.0]])
+res = mt.trace(x, p, q=[-1], deposit=dict(kind=&quot;bank&quot;))
+
+print(res[&quot;fate&quot;][0])          # 1 = reached ground (see mutracr.FATES)
+print(res[&quot;deposited&quot;])        # expected decays along the path
+print(res[&quot;bank&quot;][&quot;e_mu&quot;][:3]) # decay deposit rows
+</code></pre>
+<h2 id="configuration">Configuration</h2>
+<p>Constructor arguments:</p>
+<ul>
+<li><code>bfield</code> — <code>"none"</code>, <code>"dipole"</code> (gtracr's ideal centred dipole),
+  <code>"shell"</code> (IGRF-14 tabulated on an (h, colat, lon) grid over the
+  atmospheric shell, trilinear interpolation, built once at
+  construction; validated against direct IGRF to &lt;0.1%), or
+  <code>("uniform", (bx, by, bz))</code> in Tesla.</li>
+<li><code>atmosphere</code> — <code>"none"</code>, <code>"usstd"</code> (Linsley/CORSIKA US-Std analytic
+  layers), <code>("uniform", rho0)</code>, or <code>("table", h_cm, rho)</code> for sampled
+  profiles (e.g. MSIS); evenly-spaced tables get a direct-index fast
+  path.</li>
+<li><code>dedx</code> — constant stopping power or <code>(e_kin_grid, a)</code> table
+  (interpolated linearly in ln E_kin, clamped), e.g. from MCEq's
+  continuous-loss table.</li>
+<li><code>r_ground</code> — ground-sphere radius in cm. Default 6371.2 km (gtracr's
+  Earth radius); MCEq-matched work uses 6391 km.</li>
+</ul>
+<h2 id="tracing-and-deposit-consumers">Tracing and deposit consumers</h2>
+<p><code>trace(x, p, q, pol=None, w=None, ...)</code> marches all rays to
+termination (<code>ground</code> / <code>stopped</code> / <code>faded</code> / <code>escaped</code> / <code>maxsteps</code>)
+with per-ray adaptive time steps (<code>ctl_bend</code>, <code>ctl_loss</code>, <code>ctl_decay</code>,
+<code>ctl_path</code> control the per-step bend angle, fractional energy loss,
+decay probability and path length). A step crossing the ground is cut
+back to the chord crossing (interpolated linearly in r), so grazing
+rays end within ~10 cm below the sphere. The returned dict contains the
+final states, per-fate weights, and a <code>weight_audit</code> (deposited +
+residual weights ≈ total source weight).</p>
+<p>Decay deposits are consumed by one of three built-in accumulators
+(selected with the <code>deposit=</code> argument):</p>
+<ul>
+<li><code>dict(kind="bank", w_thresh=0.0)</code> — raw deposit rows (position,
+  direction, energy, charge, polarization, MCS sigma, weight) for
+  downstream composition, e.g. with the Michel kernels below. The MCS
+  sigma is the value before the step's own increment.</li>
+<li><code>dict(kind="spectrum", e_edges=...)</code> — per-charge E_mu histograms of
+  Σw and Σw·pol. Memory-light; use for large batches.</li>
+<li><code>dict(kind="angular", e_edges=..., d_edges=..., axis=(0,0,1))</code> —
+  per-charge (E_mu, angle-to-axis) histograms of Σw, Σw·pol, Σw·σ²_MCS
+  plus an overflow tally.</li>
+</ul>
+<p>Rays are independent, so <code>trace</code> parallelises over <code>n_threads</code>
+std::thread workers (default: all cores) with the GIL released.
+Per-ray results are bit-identical for any thread count.</p>
+<h2 id="michel-kernels">Michel kernels</h2>
+<p><code>gtracr.mutracr</code> also provides the polarized μ → ν decay kernels used
+to turn decay deposits into neutrino fluxes:</p>
+<ul>
+<li><code>rest_kernel(x, cos_th_s, pol, kind)</code> — rest-frame
+  dN/(dx dΩ), <code>kind</code> in <code>("numu", "nue")</code>.</li>
+<li><code>lab_spectrum(e_nu, e_mu, pol, kind, charge)</code> — angle-integrated lab
+  spectrum per decay (normalised to 1).</li>
+<li><code>lab_kernel(e_nu, cos_th_lab, e_mu, pol, kind, charge)</code> — lab-frame
+  double-differential kernel toward a detector direction.</li>
+</ul>
+<p>The polarization sign convention is pinned against the MCEq decay
+database helicity polynomials.</p>
+<h2 id="performance">Performance</h2>
+<p>About 780 000 rays/s on 32 cores (dipole field, <code>spectrum</code> tally;
+<code>python examples/eval_mutracr_benchmark.py --full</code>); the <code>bank</code> consumer
+is allocation-bound, so prefer the tallies for large runs.</p>
+<h2 id="backward-characteristics-and-source-integrals">Backward characteristics and source integrals</h2>
+<p><code>MuonTracer.trace_backward(x, p, q, ...)</code> traces from an observation state
+toward possible production points. Momentum is always the <strong>physical forward
+momentum</strong>; do not reverse the input momentum or charge. Backward propagation
+reverses spatial drift and magnetic curvature, increases energy under inverse
+continuous losses, and decreases the probability of surviving to observation.
+The upper absorbing sphere is <code>r_ground + h_escape</code>; set <code>h_escape=1.128e7</code>
+for a 112.8 km atmosphere. Forward <code>trace</code> is unchanged.</p>
+<p>With backward arc length s [cm], physical unit direction u, total energy E,
+stopping power a(E), density rho and momentum magnitude p, the equations are</p>
+<pre><code class="language-text">dx/ds = -u
+du/ds = -(KP / C_CMS) q (u x B) / p
+dE/ds = rho a(E)
+dA/ds = m_mu / (p C_CMS tau_mu)
+survival = exp(-A)
+</code></pre>
+<p>The phase-space focusing of the differential intensity is
+J = a(E_past)/a(E_obs) for these separable losses (J = 1 when a = 0); it is
+not a derivative of endpoint energies between neighbouring curved rays.</p>
+<p>The returned arrays are <code>x, p, survival, jacobian, path, steps_per_ray, fate</code>.
+<code>e_max</code> is a <strong>total</strong> energy limit [GeV]; <code>path_max</code> is cm (None means no
+path cap). <code>survival_min</code>, <code>max_steps</code> and positive <code>ctl_bend, ctl_loss,
+ctl_decay, ctl_path</code> bound the work. Final steps are clipped at the ground,
+TOA, energy and survival limits. <code>BACKWARD_FATES</code> maps codes to
+<code>maxsteps, ground, e_max, faded, toa, path_max</code>.</p>
+<p>By default <code>bank=True</code> also returns midpoint quadrature rows with
+<code>x, phat, e_mu, q, ray, ds, survival, jacobian, w</code>, where
+<code>w=survival*jacobian*ds</code>. A source integral is the sum of <code>w*q_source</code>
+for each ray. Source values must be per cm; include density if a cascade
+source is per g/cm². Bank rows preserve ray/path order across thread counts.
+This source quadrature has finite numerical error; refine the step controls
+to establish convergence.</p>
+<p>For a fused compiled source without path storage, pass <code>bank=False</code> and
+<code>source=dict(h_cm=..., cos_theta=..., e_mu=..., values=...)</code>. Axes must be
+strictly increasing, with at least two finite nodes each; <code>e_mu</code> is total
+energy above the muon mass. Values have shape <code>(2,nH,nMu,nE,nCol)</code>, with
+charge order (+1,-1). <code>cos_theta</code> is the local <strong>zenith cosine of the arrival
+direction</strong>, <code>-phat·r̂</code> (positive for downgoing muons, as in MCEq), so a grid
+on [0, 1] covers all downgoing directions. Interpolation is linear in
+altitude, cosine and ln(total energy); the source vanishes outside the grid.
+Signed response columns are supported. The output <code>source_integral</code> has
+shape (N,nCol). The C++ <code>BackwardSourceConsumer</code> interface supports more
+general source evaluators; consumers may run concurrently on distinct ray
+indices.</p>
+<p>See <code>examples/mutracr_backward.py</code> for a nominal plus signed source example.</p>
+<p>Backward transport follows deterministic characteristics only: no adjoint
+angular diffusion for multiple scattering and no spin precession. Ground
+geometry is spherical and the density profile radial.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../bfield/" class="btn btn-neutral float-left" title="Magnetic Field Models"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../architecture/" class="btn btn-neutral float-right" title="Architecture">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/kwat0308/gtracr" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../bfield/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../architecture/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
