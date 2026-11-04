@@ -7,6 +7,7 @@ on:
     types: [published]
   schedule:
     - cron: "0 1 * * 1"  # 01:00 UTC Monday (09:00 Taipei, UTC+8)
+  workflow_dispatch:
 
 concurrency:
   group: release-${{ github.ref }}
@@ -17,7 +18,7 @@ permissions:
 
 jobs:
   build-wheels:
-    if: github.event_name == 'push' || github.event_name == 'schedule'
+    if: github.event_name != 'release'
     strategy:
       fail-fast: false
       matrix:
@@ -64,7 +65,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build-sdist:
-    if: github.event_name == 'push' || github.event_name == 'schedule'
+    if: github.event_name != 'release'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -106,19 +107,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           RELEASE_SHA="${{ github.sha }}"
-
-          # Try to find a workflow run matching the release commit
-          RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/release.yml/runs?branch=master&status=success&event=push&per_page=100" \
-            --jq "[.workflow_runs[] | select(.head_sha == \"$RELEASE_SHA\")] | .[0].id // empty")
-
+          # Wheels must come from a successful build of the released commit itself
+          RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/release.yml/runs?branch=master&status=success&per_page=100" \
+            --jq "[.workflow_runs[] | select(.head_sha == \"$RELEASE_SHA\" and .event != \"release\")] | .[0].id // empty")
           if [ -z "$RUN_ID" ]; then
-            echo "::warning::No build found for exact commit $RELEASE_SHA, using latest successful build"
-            RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/release.yml/runs?branch=master&status=success&event=push&per_page=1" \
-              --jq '.workflow_runs[0].id // empty')
-          fi
-
-          if [ -z "$RUN_ID" ]; then
-            echo "::error::No successful build found on master"
+            echo "::error::No successful Release build of $RELEASE_SHA on master; run the workflow on that commit first"
             exit 1
           fi
 
