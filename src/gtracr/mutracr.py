@@ -28,6 +28,14 @@ EARTH_RADIUS_CM = 6.3712e8  # gtracr EARTH_RADIUS in cm
 
 #: fate codes in the ``trace()`` result
 FATES = {0: "maxsteps", 1: "ground", 2: "stopped", 3: "faded", 4: "escaped"}
+BACKWARD_FATES = {
+    0: "maxsteps",
+    1: "ground",
+    2: "e_max",
+    3: "faded",
+    4: "toa",
+    5: "path_max",
+}
 
 
 class MuonTracer:
@@ -153,6 +161,66 @@ class MuonTracer:
         return self._cpp.dedx(np.atleast_1d(np.asarray(e_tot, float)))
 
     # -- transport -------------------------------------------------------
+
+    def trace_backward(
+        self,
+        x,
+        p,
+        q,
+        *,
+        e_max=1e6,
+        path_max=None,
+        survival_min=1e-8,
+        max_steps=100000,
+        ctl_bend=0.05,
+        ctl_loss=0.05,
+        ctl_decay=0.05,
+        ctl_path=2e5,
+        n_threads=0,
+        bank=True,
+        source=None,
+    ):
+        """Integrate backward characteristics with physical forward momenta.
+
+        Traces observation states (x [cm], p [GeV/c], q = +-1) back toward
+        production; energies are TOTAL GeV and the absorbing upper sphere is
+        ``r_ground + h_escape``.  Returns final ``x, p, survival, jacobian,
+        path, steps_per_ray, fate`` (codes in :data:`BACKWARD_FATES`), plus
+        the midpoint ``bank`` rows (``bank=True``) and/or ``source_integral``
+        for a tabulated ``source`` on (h_cm, cos_theta, e_mu), where
+        cos_theta is the zenith cosine of the arrival direction (> 0
+        downgoing).  Invalid inputs raise ValueError.  See docs/mutracr.md.
+        """
+        x = np.atleast_2d(np.asarray(x, float))
+        p = np.atleast_2d(np.asarray(p, float))
+        charge = np.asarray(q)
+        if not np.all((charge == -1) | (charge == 1)):
+            raise ValueError("q must contain only -1 or +1")
+        if int(max_steps) != max_steps:
+            raise ValueError("max_steps must be a positive integer")
+        if int(n_threads) != n_threads:
+            raise ValueError("n_threads must be a nonnegative integer")
+        if source is not None:
+            source = {
+                key: np.ascontiguousarray(source[key], dtype=float)
+                for key in ("h_cm", "cos_theta", "e_mu", "values")
+            }
+        return self._cpp.trace_backward(
+            x,
+            p,
+            np.asarray(charge, np.int64),
+            e_max=float(e_max),
+            path_max=np.inf if path_max is None else float(path_max),
+            survival_min=float(survival_min),
+            max_steps=int(max_steps),
+            ctl_bend=float(ctl_bend),
+            ctl_loss=float(ctl_loss),
+            ctl_decay=float(ctl_decay),
+            ctl_path=float(ctl_path),
+            n_threads=int(n_threads),
+            bank=bool(bank),
+            source=source,
+        )
 
     def trace(
         self,

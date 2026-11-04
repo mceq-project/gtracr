@@ -2,17 +2,6 @@
 
 Presents the version history of the package.
 
-### Unreleased
-
-New:
-
-- **MuonTracer ("mutracr")**: batch transport of atmospheric muons between
-  production and decay (RK4, continuous dE/dX loss, expected-decay weight
-  deposits, Fermi–Eyges MCS variance, std::thread parallelism); see
-  docs/mutracr.md.
-- Polarized Michel mu → nu kernels in `gtracr.mutracr`.
-- Benchmark: `examples/eval_mutracr_benchmark.py`.
-
 ### Version 3.0.0
 
 Breaking changes:
@@ -42,6 +31,15 @@ Breaking changes:
 
 New:
 
+- **MuonTracer ("mutracr")**: batch transport of atmospheric muons between
+  production and decay (RK4, continuous dE/dX loss, expected-decay weight
+  deposits, Fermi–Eyges MCS variance, std::thread parallelism); see
+  docs/mutracr.md.
+- Polarized Michel mu → nu kernels in `gtracr.mutracr`.
+- Benchmark: `examples/eval_mutracr_benchmark.py`.
+- `MuonTracer.trace_backward`: backward muon characteristics with signed,
+  multi-column tabulated production sources and the CSDA intensity Jacobian;
+  example `examples/mutracr_backward.py`.
 - `GMRC(method="penumbra")`: Cooke et al. (1991) R_L, R_U, R_eff per direction on a
   geometric rigidity ladder (adaptive scan) in the C++ batch engine
   (`batch_gmrc_penumbra`); explicit direction grids via
