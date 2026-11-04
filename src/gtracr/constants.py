@@ -8,7 +8,7 @@ SPEED_OF_LIGHT = sc.c  # speed of light in vacuum (m/s)
 ELEMENTARY_CHARGE = sc.e  # elementary charge (coulombs, SI exact)
 
 EARTH_RADIUS = 6371.2 * (1e3)  # Earth radius (meters)
-G10 = 29404.8 * (1e-9)  # IGRF-2020 first dipole coefficient (Tesla)
+G10 = 29350.0 * (1e-9)  # IGRF-14 first dipole coefficient at 2025.0 (Tesla)
 
 RAD_PER_DEG = np.pi / 180.0
 DEG_PER_RAD = 180.0 / np.pi

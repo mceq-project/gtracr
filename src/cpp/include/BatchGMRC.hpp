@@ -55,7 +55,9 @@ BatchGMRCResult batch_gmrc_evaluate(const float* shared_table, const TableParams
 //   R_eff : R_U - sum of allowed rung widths in [R_L, R_U]
 //           (= bottom edge of the ladder + sum of all forbidden rung widths)
 //   flag  : 0 = resolved, 1 = no forbidden rung (cutoff below the ladder; R_L = R_U = R_eff =
-//           bottom edge), 2 = top rung forbidden (R_U and R_eff are lower bounds)
+//           bottom edge), 2 = top rung forbidden (R_U and R_eff are lower bounds),
+//           3 = bottom rung allowed but a higher one forbidden (penumbra extends below the
+//           ladder; R_L is an upper bound and R_eff assumes the region below is allowed)
 // Adaptive scan: every `coarse`-th rung is traced first; coarse intervals within `guard`
 // intervals of an allowed/forbidden change are then filled rung by rung, the others inherit
 // the common value of their end rungs. coarse = 1 traces every rung (exact on the ladder).

@@ -53,7 +53,7 @@ def _vertical_state(lat_deg, rigidity, palt_km=100.0):
 
 def test_dipole_strength():
     """B0 from the degree-1 quadrature: exact for the dipole, |g1| for IGRF."""
-    assert _tracer("d").dipole_b0() == pytest.approx(29404.8e-9, rel=1e-12)
+    assert _tracer("d").dipole_b0() == pytest.approx(29350.0e-9, rel=1e-12)
     b0 = _tracer("i").dipole_b0()
     assert 29.0e-6 < b0 < 30.5e-6
 
@@ -67,7 +67,7 @@ def test_run_limits():
     assert (tr.escape_factor, tr.time_factor) == (k, n)
     for rig in [0.2, 1.0, 5.0, 50.0]:
         p = rig * KG_M_S_PER_GEVC
-        c_st = EARTH_RADIUS * np.sqrt(29404.8e-9 * EARTH_RADIUS * ELEMENTARY_CHARGE / p)
+        c_st = EARTH_RADIUS * np.sqrt(29350.0e-9 * EARTH_RADIUS * ELEMENTARY_CHARGE / p)
         assert tr.stormer_length(p) == pytest.approx(c_st, rel=1e-12)
         tr.reset()
         tr.evaluate(0.0, _vertical_state(80.0, rig))
@@ -114,7 +114,7 @@ def test_dipole_lower_cutoff_approaches_stormer():
     r = EARTH_RADIUS + palt * 1e3
     rv = (
         SPEED_OF_LIGHT
-        * 29404.8e-9
+        * 29350.0e-9
         * EARTH_RADIUS**3
         * np.cos(np.radians(60.0)) ** 4
         / (4 * r * r)

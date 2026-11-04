@@ -14,7 +14,7 @@ from gtracr.bfield import MagneticField, IGRF14, IGRFTable
 
 Evaluates the first-order term of the geomagnetic scalar potential
 (1/r³ falloff). Fastest to evaluate; useful for coarse studies or
-sanity checks. Uses the IGRF-2020 G10 coefficient (29 404.8 nT).
+sanity checks. Uses the IGRF-14 g10 coefficient at 2025.0 (29 350.0 nT).
 
 ```python
 from gtracr.bfield import MagneticField

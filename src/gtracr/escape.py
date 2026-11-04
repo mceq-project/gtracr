@@ -1,18 +1,9 @@
 """Rigidity-aware escape criterion shared by Trajectory and GMRC.
 
-A back-traced trajectory is allowed once it reaches the escape radius
-
-    r_esc = max(escape_radius, k * C_St),   C_St = RE * sqrt(B0 * RE * |q| / p),
-
-within the time budget
-
-    t_max = max(max_time, N * r_esc / (beta * c)),
-
-where C_St is the Störmer length for momentum p and B0 the dipole strength
-sqrt(g10^2 + g11^2 + h11^2) of the active field model. At high rigidity the
-fixed escape_radius / max_time apply unchanged; at low rigidity the sphere
-and the budget grow so that slowly escaping trajectories are not counted as
-forbidden. k = N = 0 restores the fixed criterion.
+A back-traced trajectory is allowed once it reaches
+r_esc = max(escape_radius, k * C_St(p)) within t_max = max(max_time, N * r_esc / (beta c)),
+C_St = RE sqrt(B0 RE |q| / p) the Störmer length (implementation: IntegratorControl.hpp).
+k = N = 0 restores the fixed criterion. Validity and cost: docs/geomagnetic_cutoffs.md.
 """
 
 from gtracr._libgtracr import DEFAULT_ESCAPE_FACTOR, DEFAULT_TIME_FACTOR

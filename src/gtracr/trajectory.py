@@ -70,22 +70,15 @@ class Trajectory:
         (default ``10 * EARTH_RADIUS``). With the rigidity-aware criterion
         (``escape_factor``) this is a lower bound.
     escape_factor, time_factor : float, optional
-        Rigidity-aware escape criterion of the C++ tracer: the escape radius is
-        ``max(escape_altitude, escape_factor * C_St)`` with the Störmer length
-        ``C_St = RE sqrt(B0 RE |q| / p)``, and the time budget is
-        ``max(max_time, time_factor * r_esc / (beta c))``. ``None`` uses the
-        package defaults (``gtracr.escape.DEFAULT_ESCAPE_FACTOR`` /
-        ``DEFAULT_TIME_FACTOR``); ``0, 0`` restores the fixed criterion. Not
-        used by the pure-Python tracer (``use_python=True``).
+        Rigidity-aware escape criterion (``None`` = defaults 4, 80; ``0, 0`` =
+        fixed criterion); see ``gtracr.escape``. C++ tracer only.
     solver : str, optional
         Integration method: ``"rk4"`` (default, frozen-field Runge-Kutta 4),
         ``"boris"`` (Boris pusher, ~30 %% faster), or ``"rk45"`` (adaptive
         Dormand-Prince).
     atol : float, optional
-        Absolute tolerance for the RK45 solver (default 0). The error norm is
-        dimensionless: position errors in units of RE with tolerance
-        ``atol + rtol * r / RE``, momentum errors in units of |p| with
-        tolerance ``atol + rtol``.
+        Absolute tolerance for the RK45 solver (default 0; dimensionless, see
+        docs/solvers.md).
     rtol : float, optional
         Relative tolerance for the RK45 solver (default 1e-7).
 
