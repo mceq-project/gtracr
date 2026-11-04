@@ -17,7 +17,7 @@ from gtracr.location import Location
 from gtracr.trajectory import Trajectory
 
 SPEED_OF_LIGHT = 299792458.0
-DIPOLE_B0 = 29404.8e-9  # |B0| of gtracr's dipole (MagneticField.hpp), tesla
+DIPOLE_B0 = 29350.0e-9  # |B0| of gtracr's dipole (MagneticField.hpp), tesla
 
 
 def _penumbra(**kw):
@@ -191,6 +191,30 @@ def _brute_force_ladder(loc, palt, date, zenith, azimuth, ladder):
         tracer.evaluate(0.0, pos + list(mom_unit * mom))
         allowed[k] = tracer.particle_escaped
     return allowed
+
+
+def test_flag_penumbra_below_ladder():
+    """Flag 3: the bottom rung is allowed but a higher one is forbidden."""
+    kw = dict(
+        location=Location("Kamioka", 36.4348, 137.276599, 0.0),
+        bfield_type="igrf",
+        date="2024-01-15",
+        max_rigidity=20.0,
+        ladder_delta=0.01,
+        coarse=1,
+        store_ladder=True,
+    )
+    full = _penumbra(min_rigidity=3.0, **kw)
+    full.evaluate_batch(zenith=[60.0], azimuth=[270.0])
+    a = full.ladder_allowed[0]
+    assert full.data_dict["flag"][0] == 0
+    j = int(np.argmax(a))  # lowest allowed rung, below R_U in the penumbra
+    assert not a[j + 1 :].all()
+    cut = _penumbra(min_rigidity=float(full.ladder[j]), **kw)
+    cut.evaluate_batch(zenith=[60.0], azimuth=[270.0])
+    np.testing.assert_array_equal(cut.ladder_allowed[0], a[j : j + len(cut.ladder)])
+    assert cut.data_dict["flag"][0] == 3
+    assert cut.data_dict["r_upper"][0] == pytest.approx(full.data_dict["r_upper"][0])
 
 
 def test_igrf_full_ladder_matches_single_trajectories():

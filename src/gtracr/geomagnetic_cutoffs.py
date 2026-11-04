@@ -694,7 +694,8 @@ class GMRC:
         With ``method="penumbra"`` every direction is kept and ``data_dict``
         additionally holds ``r_lower``, ``r_upper``, ``r_eff`` (GV) and ``flag``
         (0 = resolved, 1 = cutoff below ``min_rigidity``, 2 = cutoff at or above
-        ``max_rigidity``); ``rcutoff`` is ``r_eff``.
+        ``max_rigidity``, 3 = penumbra extends below ``min_rigidity``);
+        ``rcutoff`` is ``r_eff``.
 
         Parameters
         ----------

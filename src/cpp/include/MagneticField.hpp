@@ -13,7 +13,7 @@ class MagneticField {
 
  public:
   // Constructor
-  MagneticField() : B0{-29404.8 * (1e-9)} {}
+  MagneticField() : B0{-29350.0 * (1e-9)} {}
   /*
     Obtain the values of the magnetic field for a specified (r, theta, phi) value
     in the dipole field approximation.
