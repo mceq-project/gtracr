@@ -500,7 +500,11 @@ static void summarize_ladder(const uint8_t* allowed, const Ladder& L, double& r_
     r_lower = r_upper = r_eff = L.lo[0];
     return;
   }
-  if (iu == K - 1) flag = 2;  // top rung forbidden: cutoff at or above the ladder top
+  if (iu == K - 1) {
+    flag = 2;  // top rung forbidden: cutoff at or above the ladder top
+  } else if (il == 0) {
+    flag = 3;  // bottom rung allowed below a forbidden one: penumbra reaches below the ladder
+  }
   r_upper = L.hi[iu];
   r_lower = il >= 0 ? L.lo[il] : L.hi[K - 1];
   // equal to R_L (or R_U) without a penumbra; clamp the rounding of the sum
@@ -523,7 +527,7 @@ PenumbraResult batch_gmrc_penumbra(const float* shared_table, const TableParams&
     out.zenith = zenith_in;
     out.azimuth = azimuth_in;
   } else {
-    // Same per-thread seeding as batch_gmrc_evaluate, but every draw is kept.
+    // One RNG stream seeded with base_seed; every draw is kept.
     out.zenith.resize(params.n_samples);
     out.azimuth.resize(params.n_samples);
     std::mt19937_64 rng(params.base_seed);

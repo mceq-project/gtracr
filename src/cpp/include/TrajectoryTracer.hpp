@@ -157,10 +157,7 @@ class TrajectoryTracer {
   const double& start_altitude() { return start_altitude_; }
   const double& escape_radius() { return escape_radius_; }
 
-  // Rigidity-aware escape criterion: escape_factor k scales the escape radius
-  // with the Störmer length, time_factor N sets the time budget to N escape
-  // radii of path. escape_radius and max_iter * stepsize remain lower bounds;
-  // k = N = 0 restores the fixed criterion.
+  // Rigidity-aware escape criterion (IntegratorControl.hpp); k = N = 0 = fixed criterion.
   void set_escape_scaling(double escape_factor, double time_factor) {
     escape_factor_ = escape_factor;
     time_factor_ = time_factor;
