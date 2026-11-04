@@ -4,7 +4,7 @@ Tests for MuonTracer ("mutracr") — batch atmospheric-muon transport.
 Layers:
 1. analytic anchors (helix, CSDA range, vacuum decay weight),
 2. exact parity against the vendored numpy reference
-   (gtracr._mu_reference, the nu3d stage-C tracer),
+   (gtracr._mu_reference),
 3. deposit consumers (bank / spectrum / angular) cross-consistency,
 4. field/atmosphere/dedx probes,
 5. threading invariance,

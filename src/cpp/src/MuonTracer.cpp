@@ -475,7 +475,8 @@ void MuonTracer::trace_range(std::size_t i0, std::size_t i1, const std::vector<d
         acc.deposit(dep, x_mid, pv, e_mid, q, pol, std::sqrt(th2), dw);
       }
 
-      // MCS variance along the step (pre-pullback midpoint, as numpy)
+      // MCS variance along the (pulled-back) step; the deposit above used
+      // sqrt(th2) from before this increment, as numpy.
       if (has_atmo) {
         const double xm[3] = {0.5 * (x[0] + x1[0]), 0.5 * (x[1] + x1[1]), 0.5 * (x[2] + x1[2])};
         const double h_mid = norm3(xm) - r_ground_;

@@ -19,10 +19,13 @@ Units: cm, s, GeV, Tesla, g/cm^3, dE/dX in GeV/(g/cm^2) — the
 atmospheric-muon literature convention, NOT the SI units of
 TrajectoryTracer.  The Python wrapper (gtracr.mutracr) documents this.
 
-Termination fates: 'ground' (r < r_ground, state pulled back onto the
-sphere), 'stopped' (E < e_min), 'faded' (w < w_min), 'escaped' (above
-r_ground + h_escape moving outward), 'maxsteps' (still alive at the
-step cap).  deposited + sum(fate weights) == sum(source weights) (audited in the result).
+Termination fates: 'ground' (r < r_ground; the step is cut back to the
+chord crossing, interpolated linearly in r, so grazing rays end within
+~10 cm below the sphere), 'stopped' (E < e_min), 'faded' (w < w_min),
+'escaped' (above r_ground + h_escape moving outward), 'maxsteps' (still
+alive at the step cap).  deposited + sum(fate weights) == sum(source
+weights) (audited in the result).  Deposits carry sigma_MCS =
+sqrt(th2) from before the step's increment.
 
 Deposit consumers (selected per trace() call):
   none     — weights still evolve, nothing recorded

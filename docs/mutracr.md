@@ -2,10 +2,9 @@
 
 `MuonTracer` — nicknamed **mutracr** — transports batches of atmospheric
 muons between production and decay: RK4 integration of the Lorentz force
-with continuous dE/dX energy loss, per-step *expected*-decay weight
-deposition, and accumulated multiple-scattering (Fermi–Eyges) variance.
-
-Each step deposits the expected decay weight at its midpoint.
+with continuous dE/dX energy loss, accumulated multiple-scattering
+(Fermi–Eyges) variance, and deposition of the *expected* decay weight at
+each step midpoint (decays are never sampled).
 
 ## Units
 
@@ -64,8 +63,9 @@ Constructor arguments:
 termination (`ground` / `stopped` / `faded` / `escaped` / `maxsteps`)
 with per-ray adaptive time steps (`ctl_bend`, `ctl_loss`, `ctl_decay`,
 `ctl_path` control the per-step bend angle, fractional energy loss,
-decay probability and path length). Rays crossing the ground within a
-step are pulled back onto the sphere. The returned dict contains the
+decay probability and path length). A step crossing the ground is cut
+back to the chord crossing (interpolated linearly in r), so grazing
+rays end within ~10 cm below the sphere. The returned dict contains the
 final states, per-fate weights, and a `weight_audit` (deposited +
 residual weights ≈ total source weight).
 
@@ -74,7 +74,8 @@ Decay deposits are consumed by one of three built-in accumulators
 
 - `dict(kind="bank", w_thresh=0.0)` — raw deposit rows (position,
   direction, energy, charge, polarization, MCS sigma, weight) for
-  downstream composition, e.g. with the Michel kernels below.
+  downstream composition, e.g. with the Michel kernels below. The MCS
+  sigma is the value before the step's own increment.
 - `dict(kind="spectrum", e_edges=...)` — per-charge E_mu histograms of
   Σw and Σw·pol. Memory-light; use for large batches.
 - `dict(kind="angular", e_edges=..., d_edges=..., axis=(0,0,1))` —
@@ -98,23 +99,10 @@ to turn decay deposits into neutrino fluxes:
   double-differential kernel toward a detector direction.
 
 The polarization sign convention is pinned against the MCEq decay
-database helicity polynomials (nu3d gate C0/T6).
+database helicity polynomials.
 
 ## Performance
 
-Workload: muons injected at 5–30 km, 0–70° tilts, 0.2–20 GeV, traced
-through the US-Std atmosphere to ground/decay (32-core x86_64 node,
-GCC 11, `-O3 -ffast-math`):
-
-| engine | N rays | threads | rays/s |
-|--------|-------:|--------:|-------:|
-| numpy reference (bank) | 100 000 | – | ~1 300 |
-| C++ dipole (spectrum) | 100 000 | 1 | ~38 000 |
-| C++ dipole (spectrum) | 1 000 000 | 32 | ~780 000 |
-| C++ shell-IGRF (spectrum) | 1 000 000 | 32 | ~310 000 |
-| C++ dipole (bank) | 1 000 000 | 32 | ~85 000 |
-
-The `bank` consumer is allocation-bound (it stores every deposit row);
-prefer the `spectrum`/`angular` tallies for production runs.
-
-Reproduce with `python examples/eval_mutracr_benchmark.py --full`.
+About 780 000 rays/s on 32 cores (dipole field, `spectrum` tally;
+`python examples/eval_mutracr_benchmark.py --full`); the `bank` consumer
+is allocation-bound, so prefer the tallies for large runs.
