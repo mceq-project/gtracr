@@ -184,12 +184,29 @@ out of time. gtracr scales both limits with the rigidity of each trajectory
     r_esc = max(escape_radius, k · C_St(p)),
     t_max = max(max_time, N · r_esc / (β c)),
 
-where B0 = √(g10² + g11² + h11²) is the dipole strength of the active field
-model, computed once per tracer. The defaults are `escape_factor` k = 4 and
+where C_St = R_E √(B0 R_E |q| / p) is the Störmer length and
+B0 = √(g10² + g11² + h11²) the dipole strength of the active field model,
+computed once per tracer. The defaults are `escape_factor` k = 4 and
 `time_factor` N = 80. `escape_radius` and `max_time` stay lower bounds.
-`escape_factor=0, time_factor=0` restores the fixed criterion.
-`Trajectory`, `GMRC` and `TrajectoryTracer.set_escape_scaling` accept both
-parameters.
+`escape_factor=0, time_factor=0` restores the fixed criterion (10 R_E within
+`max_time`). `Trajectory`, `GMRC` and `TrajectoryTracer.set_escape_scaling`
+accept both parameters.
+
+**Why.** The fixed 10 R_E / 1 s criterion counts slowly escaping trajectories
+as forbidden: below about 10 GV, where 4 C_St exceeds 10 R_E, it overestimates
+the cutoff (dipole R_L at 60° up to 18 % high; South Pole 0.20 instead of
+0.067 GV). Against N = 640 the defaults give R_eff within 0.5 % (dipole, Oulu) and 3 % at
+the South Pole (quasi-trapped orbits).
+
+**Validity.** Only the internal field is modelled; beyond the magnetopause
+(about 10 R_E on the day side) the real field is not IGRF. Cutoffs below
+about 1 GV, at high latitudes, remain model values in either criterion; an
+external field model (e.g. Tsyganenko) lowers them further.
+
+**Cost.** Unchanged above about 10 GV. Bisection at mid latitudes costs
+×1.1–1.4; full high-latitude penumbra ladders ×7–17. A forbidden trajectory
+at 0.3 GV runs about 3·10⁷ RK4 steps of 10 µs (r_esc ≈ 56 R_E); the step budget is
+capped at 2·10⁸.
 
 ## Solver recommendation
 

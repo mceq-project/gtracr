@@ -351,10 +351,8 @@ class GMRC:
         Tolerances of the RK45 adaptive solver (defaults 0 and 1e-7; dimensionless,
         see ``Trajectory``).
     - escape_factor, time_factor : float, optional
-        Rigidity-aware escape criterion (see ``gtracr.escape``): escape radius
-        ``max(10 RE, escape_factor * C_St(R))`` with the Störmer length C_St, time
-        budget ``max(max_time, time_factor * r_esc / (beta c))``. ``None`` uses the
-        defaults; ``0, 0`` restores the fixed 10 RE / ``max_time`` criterion.
+        Rigidity-aware escape criterion (``None`` = defaults 4, 80; ``0, 0`` = fixed
+        10 RE / ``max_time``); see ``gtracr.escape``.
     - method : str, optional
         ``"bisection"`` (default): bisection on a linear rigidity grid, returns the first
         escaping rigidity found; directions above the scan are retained and flagged.
