@@ -1,15 +1,9 @@
 """
 mutracr — batch transport of atmospheric muons between production and decay.
 
-``MuonTracer`` marches an ensemble of weighted muon rays through the
-atmosphere and geomagnetic field: RK4 on (x, p) with per-ray adaptive
-time steps, continuous dE/dX energy loss, per-step *expected*-decay
-weight deposition, and accumulated multiple-scattering variance.
-
-Units (muon-physics convention, NOT the SI of ``Trajectory``):
-positions cm, time s, energy/momentum GeV, B Tesla, density g/cm^3,
-dE/dX GeV/(g/cm^2).  Positions are Earth-centred Cartesian with z along
-the geographic north pole and x through Greenwich.
+Units are cm / s / GeV / Tesla / g/cm^3 (NOT the SI of ``Trajectory``);
+positions are Earth-centred Cartesian (z = geographic north).  Physics,
+configuration and deposit consumers are described in docs/mutracr.md.
 
 Example
 -------
@@ -17,14 +11,10 @@ Example
 >>> from gtracr.mutracr import MuonTracer
 >>> mt = MuonTracer(bfield="dipole", atmosphere="usstd")
 >>> x = np.array([[0.0, 0.0, mt.r_ground + 1.75e6]])   # 17.5 km up
->>> p = np.array([[0.0, 0.0, -1.0]])                    # 1 GeV/c down
+>>> p = np.array([[0.0, 0.0, -3.0]])                    # 3 GeV/c down
 >>> res = mt.trace(x, p, q=[-1])
->>> res["fate"][0]                                      # 1 == ground
+>>> int(res["fate"][0])                                 # 1 == ground
 1
-
-The decay deposits compose with the polarized Michel kernels below
-(``lab_spectrum`` for angle-integrated fluxes, ``lab_kernel`` toward a
-detector direction) to yield the muon-chain neutrino source.
 """
 
 import numpy as np
@@ -97,12 +87,7 @@ class MuonTracer:
         Radial extent of the ``"shell"`` table in cm (default 1.3e7,
         just above `h_escape`); queries outside clamp to the boundary.
 
-    Notes
-    -----
-    Rays are independent; ``trace`` parallelises over ``n_threads``
-    std::thread workers (0 = all cores).  Per-ray trajectories are
-    bit-identical regardless of thread count; tally sums can differ at
-    float rounding level.
+    See docs/mutracr.md for the transport model and conventions.
     """
 
     def __init__(
@@ -197,65 +182,29 @@ class MuonTracer:
     ):
         """Integrate backward characteristics with physical forward momenta.
 
-        Positions/path lengths are cm; energies are TOTAL GeV. The absorbing
-        upper sphere is r_ground + h_escape (set h_escape to the desired TOA).
-        Energy increases into the past; survival decreases. jacobian is
-        phase-space focusing, exp(integral rho * da/dE ds), NOT a finite
-        difference of energies along neighbouring, deflected rays.
-
-        Returns final x,p,survival,jacobian,path,steps_per_ray,fate. Optional
-        bank rows have x,physical phat,e_mu,q,ray,ds,survival,jacobian and
-        w = survival*jacobian*ds. Sum w*source(x,phat,E,q) by ray to obtain
-        the differential intensity. Sources must be per cm (include rho if
-        their original measure is per column depth). Rows are ordered by ray
-        then backward path, independent of thread count.
-
-        source optionally integrates a signed, multi-column source in C++:
-        a dict with 1D increasing h_cm, cos_theta, e_mu axes, and values of
-        shape (2,nH,nMu,nE,nCol), charge order (+1,-1). cos_theta is physical
-        phat dotted with local radial up. Trilinear interpolation uses
-        h,cos_theta,ln(total E); outside-grid source is zero. The output
-        source_integral has shape (N,nCol). Use bank=False to avoid path
-        storage; no Python callback occurs during stepping.
-
-        Midpoint source quadrature has finite discretization error; refine
-        controls for convergence. No multiple scattering or adjoint angular
-        diffusion is implemented. Helicity/source components can be carried
-        as separate columns; spin precession is not modelled.
+        Traces observation states (x [cm], p [GeV/c], q = +-1) back toward
+        production; energies are TOTAL GeV and the absorbing upper sphere is
+        ``r_ground + h_escape``.  Returns final ``x, p, survival, jacobian,
+        path, steps_per_ray, fate`` (codes in :data:`BACKWARD_FATES`), plus
+        the midpoint ``bank`` rows (``bank=True``) and/or ``source_integral``
+        for a tabulated ``source`` on (h_cm, cos_theta, e_mu), where
+        cos_theta is the zenith cosine of the arrival direction (> 0
+        downgoing).  Invalid inputs raise ValueError.  See docs/mutracr.md.
         """
         x = np.atleast_2d(np.asarray(x, float))
         p = np.atleast_2d(np.asarray(p, float))
-        if x.ndim != 2 or x.shape[1] != 3 or p.shape != x.shape:
-            raise ValueError("x and p must have matching shape (N, 3)")
-        if not np.all(np.isfinite(x)) or not np.all(np.isfinite(p)):
-            raise ValueError("x and p must be finite")
         charge = np.asarray(q)
-        if charge.shape != (len(x),) or not np.all((charge == -1) | (charge == 1)):
-            raise ValueError("q must have shape (N,) and contain only -1 or +1")
-        if int(max_steps) != max_steps or max_steps < 1:
+        if not np.all((charge == -1) | (charge == 1)):
+            raise ValueError("q must contain only -1 or +1")
+        if int(max_steps) != max_steps:
             raise ValueError("max_steps must be a positive integer")
-        if int(n_threads) != n_threads or n_threads < 0:
+        if int(n_threads) != n_threads:
             raise ValueError("n_threads must be a nonnegative integer")
-        for name, val in (
-            ("e_max", e_max),
-            ("ctl_bend", ctl_bend),
-            ("ctl_loss", ctl_loss),
-            ("ctl_decay", ctl_decay),
-            ("ctl_path", ctl_path),
-        ):
-            if not np.isfinite(val) or val <= 0:
-                raise ValueError(f"{name} must be finite and positive")
-        if not np.isfinite(survival_min) or not 0 <= survival_min < 1:
-            raise ValueError("survival_min must lie in [0, 1)")
-        if path_max is not None and (not np.isfinite(path_max) or path_max <= 0):
-            raise ValueError("path_max must be finite and positive, or None")
         if source is not None:
             source = {
                 key: np.ascontiguousarray(source[key], dtype=float)
                 for key in ("h_cm", "cos_theta", "e_mu", "values")
             }
-            if any(not np.all(np.isfinite(v)) for v in source.values()):
-                raise ValueError("Source axes and values must be finite")
         return self._cpp.trace_backward(
             x,
             p,
@@ -417,14 +366,13 @@ class MuonTracer:
 #     nubar_e : F0 = 12 x^2 (1 - x),   F1 = 12 x^2 (1 - x)
 # For mu^+ (-> nubar_mu, nu_e) CP gives the same formulas with P -> -P.
 # The sign choice is pinned against the MCEq decay-DB helicity
-# polynomials to <2e-3 (nu3d gate C0/T6); the flipped sign deviates by
-# 0.3-2.1.
+# polynomials to <2e-3; the flipped sign deviates by 0.3-2.1.
 #
 # Lab frame: the polarization is carried as a scalar along p_hat (spin
 # follows momentum for g ~= 2), so boost and spin axes coincide.  With
 # massless nu, E dN/d^3p is the invariant density, so
 # dN_lab/(dE dOmega) = (E_lab/E*) dN*/(dE* dOmega*) — FIRST power (the
-# naive square over-counts by exactly gamma; nu3d gate C0/T5).
+# naive square over-counts by exactly gamma).
 # ---------------------------------------------------------------------------
 
 

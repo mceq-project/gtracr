@@ -19,10 +19,13 @@ Units: cm, s, GeV, Tesla, g/cm^3, dE/dX in GeV/(g/cm^2) — the
 atmospheric-muon literature convention, NOT the SI units of
 TrajectoryTracer.  The Python wrapper (gtracr.mutracr) documents this.
 
-Termination fates: 'ground' (r < r_ground, state pulled back onto the
-sphere), 'stopped' (E < e_min), 'faded' (w < w_min), 'escaped' (above
-r_ground + h_escape moving outward), 'maxsteps' (still alive at the
-step cap).  deposited + sum(fate weights) == sum(source weights) (audited in the result).
+Termination fates: 'ground' (r < r_ground; the step is cut back to the
+chord crossing, interpolated linearly in r, so grazing rays end within
+~10 cm below the sphere), 'stopped' (E < e_min), 'faded' (w < w_min),
+'escaped' (above r_ground + h_escape moving outward), 'maxsteps' (still
+alive at the step cap).  deposited + sum(fate weights) == sum(source
+weights) (audited in the result).  Deposits carry sigma_MCS =
+sqrt(th2) from before the step's increment.
 
 Deposit consumers (selected per trace() call):
   none     — weights still evolve, nothing recorded
@@ -230,13 +233,14 @@ struct BackwardOptions {
 // Fate: 0 maxsteps, 1 ground, 2 e_max, 3 faded, 4 TOA, 5 path_max.
 struct BackwardResult {
   std::vector<double> x, p, survival, jacobian, path;
-  std::vector<long> steps_per_ray;
+  std::vector<std::int64_t> steps_per_ray;
   std::vector<int8_t> fate;
   std::vector<BackwardSample> bank;  // ray order, then increasing backward path
 };
 
 // Optional signed, multi-column source on [charge][h][cos(theta)][ln(E)][col].
-// h is above ground; theta uses the physical direction and local radial up.
+// h is above ground; cos(theta) = -phat . r_hat is the local zenith cosine of
+// the arrival direction (positive for downgoing muons, as in MCEq).
 // Values outside the grid vanish; density factors belong in source values.
 class TabulatedBackwardSource : public BackwardSourceConsumer {
  public:

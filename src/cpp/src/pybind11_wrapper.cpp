@@ -448,7 +448,7 @@ PYBIND11_MODULE(_libgtracr, M) {
             out["jacobian"] = to_array(std::move(res.jacobian), {n});
             out["path"] = to_array(std::move(res.path), {n});
             out["fate"] = to_array_i8(std::move(res.fate));
-            py::array_t<long> steps(n);
+            py::array_t<std::int64_t> steps(n);
             std::copy(res.steps_per_ray.begin(), res.steps_per_ray.end(), steps.mutable_data());
             out["steps_per_ray"] = steps;
             if (src) {

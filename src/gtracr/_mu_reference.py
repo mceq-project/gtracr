@@ -1,7 +1,8 @@
 """
 Pure-numpy reference implementation of the muon batch tracer.
 
-Used to validate the C++ muon transport engine.
+Used by the tests to pin the C++ muon transport engine.
+It mirrors the engine step for step; it is not an independent reference.
 
 State per ray (SoA): x (N,3) cm | p (N,3) GeV | q (N) | pol (N) |
 w (N) decay-survival weight | th2 (N) rad^2 MCS variance | alive (N).
@@ -14,7 +15,7 @@ Per step the expected decay weight dW = w (1 - exp(-lambda dt)),
 lambda = m_mu / (E tau_mu), is deposited at the midpoint state and w is
 multiplied by exp(-lambda dt).  MCS: d<th^2>/dX =
 (13.6 MeV / (beta p))^2 / X0 (X0 air 36.62 g/cm^2, no log term).
-Termination fates: 'ground' (pulled back onto the sphere), 'stopped',
+Termination fates: 'ground' (cut back to the chord crossing), 'stopped',
 'faded', 'escaped', 'maxsteps'; deposited + residuals == sum(w_in).
 """
 

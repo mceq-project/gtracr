@@ -159,6 +159,22 @@ def test_thread_invariance_and_fused_signed_sources():
     np.testing.assert_array_equal(no_bank["source_integral"], one["source_integral"])
 
 
+def test_source_cos_theta_is_zenith_cosine_of_arrival():
+    # Downgoing muons have cos(zenith) > 0, as in MCEq tables: a one-sided
+    # [0, 1] grid must cover them (and a [-1, -0.5] grid must not).
+    mt = MuonTracer(bfield="none", atmosphere="none", dedx=0)
+    x, p = initial()
+    kw = dict(path_max=1e5, ctl_path=1000, n_threads=1)
+    down = dict(h_cm=[0, 1.2e7], cos_theta=[0, 1], e_mu=[0.2, 10])
+    down["values"] = np.ones((2, 2, 2, 2, 1))
+    out = mt.trace_backward(x, p, [1], source=down, **kw)
+    total = out["bank"]["w"].sum()
+    assert total > 0
+    assert out["source_integral"][0, 0] == pytest.approx(total, rel=1e-14)
+    up = dict(down, cos_theta=[-1, -0.5])
+    assert mt.trace_backward(x, p, [1], source=up, **kw)["source_integral"][0, 0] == 0
+
+
 def test_grazing_crossing_cannot_skip_ground():
     # Both the proposed step endpoint and midpoint are above ground, but the
     # short grazing chord crosses it twice BEFORE the midpoint.

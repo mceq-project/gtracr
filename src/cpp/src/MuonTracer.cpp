@@ -485,7 +485,8 @@ void MuonTracer::trace_range(std::size_t i0, std::size_t i1, const std::vector<d
         acc.deposit(dep, x_mid, pv, e_mid, q, pol, std::sqrt(th2), dw);
       }
 
-      // MCS variance along the step (pre-pullback midpoint, as numpy)
+      // MCS variance along the (pulled-back) step; the deposit above used
+      // sqrt(th2) from before this increment, as numpy.
       if (has_atmo) {
         const double xm[3] = {0.5 * (x[0] + x1[0]), 0.5 * (x[1] + x1[1]), 0.5 * (x[2] + x1[2])};
         const double h_mid = norm3(xm) - r_ground_;
@@ -664,7 +665,8 @@ TabulatedBackwardSource::TabulatedBackwardSource(std::vector<double> h, std::vec
 
 void TabulatedBackwardSource::consume(const BackwardSample& s) {
   const double r = norm3(s.x.data());
-  const double h = r - r_ground_, mu = dot3(s.x.data(), s.phat.data()) / r;
+  // Zenith cosine of the arrival direction (-phat . r_hat): > 0 downgoing.
+  const double h = r - r_ground_, mu = -dot3(s.x.data(), s.phat.data()) / r;
   const double le = std::log(s.e_mu);
   const std::vector<double>* grids[3] = {&h_, &mu_, &le_};
   const double pos[3] = {h, std::min(std::max(mu, -1.0), 1.0), le};
@@ -793,7 +795,7 @@ BackwardResult MuonTracer::trace_backward(const std::vector<double>& x,
           return res;
         };
         double path = 0;
-        long steps = 0;
+        std::int64_t steps = 0;
         int8_t fate = 0;
         for (; steps < opt.max_steps;) {
           const double r = norm3(s.data()), radial = dot3(s.data(), &s[3]) / r;

@@ -2,10 +2,9 @@
 Benchmark MuonTracer ("mutracr") — C++ engine vs the vendored numpy
 reference, across batch sizes, thread counts and field/deposit modes.
 
-The workload mimics the nu3d stage-C closure gates: muons injected
-between 5 and 30 km with 0-70 deg tilts and 0.2-20 GeV kinetic energy,
-traced through the US-Std atmosphere to ground/decay with expected-
-decay deposits.
+Workload: muons injected between 5 and 30 km with 0-70 deg tilts and
+0.2-20 GeV kinetic energy, traced through the US-Std atmosphere to
+ground/decay with expected-decay deposits.
 
 Run:  python examples/eval_mutracr_benchmark.py [--full]
 """
@@ -18,7 +17,7 @@ import numpy as np
 from gtracr import _mu_reference as ref
 from gtracr.mutracr import M_MU, MuonTracer
 
-R_G = 6.391e8  # cm (MCEq ground radius, the nu3d convention)
+R_G = 6.391e8  # cm (MCEq ground radius)
 
 
 def make_batch(n, seed=42):

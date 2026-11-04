@@ -2,10 +2,9 @@
 
 `MuonTracer` — nicknamed **mutracr** — transports batches of atmospheric
 muons between production and decay: RK4 integration of the Lorentz force
-with continuous dE/dX energy loss, per-step *expected*-decay weight
-deposition, and accumulated multiple-scattering (Fermi–Eyges) variance.
-
-Each step deposits the expected decay weight at its midpoint.
+with continuous dE/dX energy loss, accumulated multiple-scattering
+(Fermi–Eyges) variance, and deposition of the *expected* decay weight at
+each step midpoint (decays are never sampled).
 
 ## Units
 
@@ -64,8 +63,9 @@ Constructor arguments:
 termination (`ground` / `stopped` / `faded` / `escaped` / `maxsteps`)
 with per-ray adaptive time steps (`ctl_bend`, `ctl_loss`, `ctl_decay`,
 `ctl_path` control the per-step bend angle, fractional energy loss,
-decay probability and path length). Rays crossing the ground within a
-step are pulled back onto the sphere. The returned dict contains the
+decay probability and path length). A step crossing the ground is cut
+back to the chord crossing (interpolated linearly in r), so grazing
+rays end within ~10 cm below the sphere. The returned dict contains the
 final states, per-fate weights, and a `weight_audit` (deposited +
 residual weights ≈ total source weight).
 
@@ -74,7 +74,8 @@ Decay deposits are consumed by one of three built-in accumulators
 
 - `dict(kind="bank", w_thresh=0.0)` — raw deposit rows (position,
   direction, energy, charge, polarization, MCS sigma, weight) for
-  downstream composition, e.g. with the Michel kernels below.
+  downstream composition, e.g. with the Michel kernels below. The MCS
+  sigma is the value before the step's own increment.
 - `dict(kind="spectrum", e_edges=...)` — per-charge E_mu histograms of
   Σw and Σw·pol. Memory-light; use for large batches.
 - `dict(kind="angular", e_edges=..., d_edges=..., axis=(0,0,1))` —
@@ -98,26 +99,13 @@ to turn decay deposits into neutrino fluxes:
   double-differential kernel toward a detector direction.
 
 The polarization sign convention is pinned against the MCEq decay
-database helicity polynomials (nu3d gate C0/T6).
+database helicity polynomials.
 
 ## Performance
 
-Workload: muons injected at 5–30 km, 0–70° tilts, 0.2–20 GeV, traced
-through the US-Std atmosphere to ground/decay (32-core x86_64 node,
-GCC 11, `-O3 -ffast-math`):
-
-| engine | N rays | threads | rays/s |
-|--------|-------:|--------:|-------:|
-| numpy reference (bank) | 100 000 | – | ~1 300 |
-| C++ dipole (spectrum) | 100 000 | 1 | ~38 000 |
-| C++ dipole (spectrum) | 1 000 000 | 32 | ~780 000 |
-| C++ shell-IGRF (spectrum) | 1 000 000 | 32 | ~310 000 |
-| C++ dipole (bank) | 1 000 000 | 32 | ~85 000 |
-
-The `bank` consumer is allocation-bound (it stores every deposit row);
-prefer the `spectrum`/`angular` tallies for production runs.
-
-Reproduce with `python examples/eval_mutracr_benchmark.py --full`.
+About 780 000 rays/s on 32 cores (dipole field, `spectrum` tally;
+`python examples/eval_mutracr_benchmark.py --full`); the `bank` consumer
+is allocation-bound, so prefer the tallies for large runs.
 
 ## Backward characteristics and source integrals
 
@@ -127,8 +115,7 @@ momentum**; do not reverse the input momentum or charge. Backward propagation
 reverses spatial drift and magnetic curvature, increases energy under inverse
 continuous losses, and decreases the probability of surviving to observation.
 The upper absorbing sphere is `r_ground + h_escape`; set `h_escape=1.128e7`
-for a 112.8 km atmosphere. This method is additive; forward `trace` behavior
-and its deposit conventions are unchanged.
+for a 112.8 km atmosphere. Forward `trace` is unchanged.
 
 With backward arc length s [cm], physical unit direction u, total energy E,
 stopping power a(E), density rho and momentum magnitude p, the equations are
@@ -138,16 +125,12 @@ dx/ds = -u
 du/ds = -(KP / C_CMS) q (u x B) / p
 dE/ds = rho a(E)
 dA/ds = m_mu / (p C_CMS tau_mu)
-d(ln J)/ds = rho da/dE
 survival = exp(-A)
 ```
 
-J is the focusing of a differential intensity in (position, solid angle,
-energy). It is not the derivative of endpoint energy between neighbouring
-rays that follow different, energy-dependent curved paths. For these
-separable losses, positive a gives J=a(E_past)/a(E_observed). The implementation
-uses this identity when possible and integrates ln J directly when initial
-loss is zero, including the exact vacuum limit J=1.
+The phase-space focusing of the differential intensity is
+J = a(E_past)/a(E_obs) for these separable losses (J = 1 when a = 0); it is
+not a derivative of endpoint energies between neighbouring curved rays.
 
 The returned arrays are `x, p, survival, jacobian, path, steps_per_ray, fate`.
 `e_max` is a **total** energy limit [GeV]; `path_max` is cm (None means no
@@ -161,27 +144,24 @@ By default `bank=True` also returns midpoint quadrature rows with
 `w=survival*jacobian*ds`. A source integral is the sum of `w*q_source`
 for each ray. Source values must be per cm; include density if a cascade
 source is per g/cm². Bank rows preserve ray/path order across thread counts.
-They can be evaluated in vectorized batches outside the step loop, at the
-cost of storing the path. This source quadrature has finite numerical error;
-refine the step controls to establish convergence.
+This source quadrature has finite numerical error; refine the step controls
+to establish convergence.
 
 For a fused compiled source without path storage, pass `bank=False` and
 `source=dict(h_cm=..., cos_theta=..., e_mu=..., values=...)`. Axes must be
 strictly increasing, with at least two finite nodes each; `e_mu` is total
 energy above the muon mass. Values have shape `(2,nH,nMu,nE,nCol)`, with
-charge order (+1,-1). The local zenith cosine is physical phat dotted with
-radial up. Interpolation is linear in altitude, cosine and ln(total energy);
-the source vanishes outside the grid. Signed response columns are supported.
-The output `source_integral` has shape (N,nCol). No per-step Python callback
-is used. The C++ `BackwardSourceConsumer` interface supports more general
-source evaluators without an MCEq dependency; consumers may run concurrently
-on distinct ray indices.
+charge order (+1,-1). `cos_theta` is the local **zenith cosine of the arrival
+direction**, `-phat·r̂` (positive for downgoing muons, as in MCEq), so a grid
+on [0, 1] covers all downgoing directions. Interpolation is linear in
+altitude, cosine and ln(total energy); the source vanishes outside the grid.
+Signed response columns are supported. The output `source_integral` has
+shape (N,nCol). The C++ `BackwardSourceConsumer` interface supports more
+general source evaluators; consumers may run concurrently on distinct ray
+indices.
 
 See `examples/mutracr_backward.py` for a nominal plus signed source example.
 
-Backward transport currently follows deterministic characteristics only.
-It does **not** implement the adjoint angular-diffusion operator for multiple
-scattering, nor spin precession. Forward MCS variance deposits cannot be
-interpreted as an exact backward scattering solution. Ground geometry is
-spherical; geographic terrain and spatially varying atmospheric density
-beyond the configured radial profile require additional modelling.
+Backward transport follows deterministic characteristics only: no adjoint
+angular diffusion for multiple scattering and no spin precession. Ground
+geometry is spherical and the density profile radial.

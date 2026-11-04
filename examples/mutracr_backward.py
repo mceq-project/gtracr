@@ -14,9 +14,10 @@ x = [[0.0, 0.0, tracer.r_ground + 1e6]]
 p = [[0.0, 0.0, -2.0]]  # physical forward momentum, even when tracing backward
 
 # Toy intensity source per cm: nominal and signed response columns, separate
-# charges, altitude and local zenith direction. Replace with cascade sources.
+# charges, altitude and local zenith cosine (> 0 for downgoing muons).
+# Replace with cascade sources.
 h = np.linspace(0, 1.128e7, 100)
-mu = np.linspace(-1, 1, 25)
+mu = np.linspace(0, 1, 25)
 energy = np.geomspace(0.11, 1e3, 101)  # TOTAL GeV
 base = (
     np.exp(-(((h[:, None, None] - 1.7e6) / 8e5) ** 2))
